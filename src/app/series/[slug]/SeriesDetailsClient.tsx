@@ -73,16 +73,31 @@ export default function SeriesDetailsClient({ series }: SeriesDetailsClientProps
               {series.description}
             </p>
 
-            {/* Target Audience Box */}
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 flex items-start gap-2">
-              <Users className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-semibold text-slate-900 block mb-0.5">
-                  Who This Series Is For:
-                </span>
-                <span>{series.targetAudience}</span>
+            {/* Tags Box */}
+            {series.tags && series.tags.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <span className="text-xs font-semibold text-slate-500 mr-1">Tags:</span>
+                {series.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/explore?q=${encodeURIComponent(tag)}`}
+                    className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                  >
+                    #{tag}
+                  </Link>
+                ))}
               </div>
-            </div>
+            ) : series.targetAudience ? (
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 flex items-start gap-2 mb-4">
+                <Users className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-slate-900 block mb-0.5">
+                    Who This Series Is For:
+                  </span>
+                  <span>{series.targetAudience}</span>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* Bundle Benefits */}

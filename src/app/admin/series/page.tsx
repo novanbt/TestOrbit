@@ -13,6 +13,7 @@ import {
   BookOpen,
   ArrowRight,
   Plus,
+  X,
 } from "lucide-react";
 import { TestSeries, MockTest, Category } from "@/types";
 import {
@@ -21,6 +22,7 @@ import {
   deleteAdminSeries,
   getAdminTests,
   getAdminCategories,
+  deriveTagsForTest,
 } from "@/lib/admin/adminStore";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
@@ -37,7 +39,8 @@ export default function AdminSeriesPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
+  const [tags, setTags] = useState<string[]>(["Full Bundle", "Exam Prep"]);
+  const [tagInput, setTagInput] = useState("");
   const [description, setDescription] = useState("");
   const [includedCount, setIncludedCount] = useState(5);
   const [priceInRupees, setPriceInRupees] = useState(999);
@@ -78,6 +81,26 @@ export default function AdminSeriesPage() {
     }
   };
 
+  const handleAddTag = (tagToAdd?: string) => {
+    const val = (tagToAdd || tagInput).trim().replace(/^#/, "");
+    if (!val) return;
+    if (!tags.some((t) => t.toLowerCase() === val.toLowerCase())) {
+      setTags([...tags, val]);
+    }
+    setTagInput("");
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter((t) => t !== tagToRemove));
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+
   const handleToggleTestSlug = (testSlug: string) => {
     if (selectedTestSlugs.includes(testSlug)) {
       setSelectedTestSlugs(selectedTestSlugs.filter((s) => s !== testSlug));
@@ -91,7 +114,11 @@ export default function AdminSeriesPage() {
     setTitle(s.title);
     setSlug(s.slug);
     setCategoryId(s.categoryId);
-    setTargetAudience(s.targetAudience);
+    if (s.tags && s.tags.length > 0) {
+      setTags(s.tags);
+    } else {
+      setTags(deriveTagsForTest(s));
+    }
     setDescription(s.description);
     setIncludedCount(s.includedTestsCount);
     setPriceInRupees(Math.round(s.priceInPaise / 100));
@@ -107,7 +134,8 @@ export default function AdminSeriesPage() {
     setEditingId(null);
     setTitle("");
     setSlug("");
-    setTargetAudience("");
+    setTags(["Full Bundle", "Exam Prep"]);
+    setTagInput("");
     setDescription("");
     setIncludedCount(5);
     setPriceInRupees(999);
@@ -141,7 +169,8 @@ export default function AdminSeriesPage() {
       title: title.trim(),
       categoryId: categoryId || "cat-competitive",
       categoryName,
-      targetAudience: targetAudience.trim() || "Students targeting comprehensive preparation",
+      tags: tags.length > 0 ? tags : ["Bundle"],
+      targetAudience: tags.join(", ") || "All Students",
       description: description.trim() || `Comprehensive test series package for ${title.trim()}.`,
       includedTestsCount: Number(includedCount) || selectedTestSlugs.length || 5,
       priceInPaise: Math.round(priceInRupees * 100),
@@ -439,16 +468,63 @@ export default function AdminSeriesPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Target Audience
-            </label>
-            <input
-              type="text"
-              value={targetAudience}
-              onChange={(e) => setTargetAudience(e.target.value)}
-              placeholder="e.g. Serious JEE Main aspirants targeting 99+ percentile"
-              className="block w-full px-3 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-700">
+                Search & Discovery Tags
+              </label>
+              <span className="text-[11px] text-slate-400">Press Enter or comma to add</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 p-2.5 min-h-[46px] bg-slate-50/50 border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500 focus-within:bg-white mb-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80"
+                >
+                  <span>#{tag}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(tag)}
+                    className="hover:text-indigo-900 ml-0.5 cursor-pointer text-indigo-400 hover:text-indigo-700"
+                    title="Remove tag"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                placeholder={tags.length === 0 ? "Type tag (e.g. CBSE, Class 10, JEE) and press Enter..." : "Add more tags..."}
+                className="flex-1 min-w-[140px] bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none py-1"
+              />
+              {tagInput.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleAddTag()}
+                  className="px-2 py-1 rounded bg-indigo-600 text-white text-xs font-medium cursor-pointer"
+                >
+                  Add
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <span className="text-[11px] text-slate-400">Popular:</span>
+              {["Full Bundle", "Exam Prep", "Class 10", "Class 12", "JEE Main", "NEET", "PYQ Series", "Revision Pack"].map(
+                (suggested) => (
+                  <button
+                    key={suggested}
+                    type="button"
+                    onClick={() => handleAddTag(suggested)}
+                    disabled={tags.some((t) => t.toLowerCase() === suggested.toLowerCase())}
+                    className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  >
+                    +{suggested}
+                  </button>
+                )
+              )}
+            </div>
           </div>
 
           <div>

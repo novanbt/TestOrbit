@@ -15,7 +15,8 @@ export interface MockTest {
   title: string;
   categoryId: string;
   categoryName: string;
-  targetAudience: string;
+  targetAudience?: string;
+  tags?: string[];
   description: string;
   questionCount: number;
   durationMinutes: number;
@@ -37,7 +38,8 @@ export interface TestSeries {
   title: string;
   categoryId: string;
   categoryName: string;
-  targetAudience: string;
+  targetAudience?: string;
+  tags?: string[];
   description: string;
   includedTestsCount: number;
   priceInPaise: number;

@@ -49,9 +49,26 @@ export function TestCard({ test }: TestCardProps) {
         </h3>
 
         {/* Short Description */}
-        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-4">
+        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-3">
           {test.description}
         </p>
+
+        {/* Tags Row */}
+        {test.tags && test.tags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-3">
+            {test.tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-indigo-50/70 text-indigo-700 border border-indigo-100/60"
+              >
+                #{tag}
+              </span>
+            ))}
+            {test.tags.length > 3 && (
+              <span className="text-[10px] text-slate-400">+{test.tags.length - 3}</span>
+            )}
+          </div>
+        )}
 
         {/* Test Metrics Row */}
         <div className="flex items-center gap-4 py-2.5 px-3 bg-slate-50 rounded-lg text-xs text-slate-600 mb-4 border border-slate-100">

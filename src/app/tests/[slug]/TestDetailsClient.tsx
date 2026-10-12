@@ -73,13 +73,28 @@ export default function TestDetailsClient({ test }: TestDetailsClientProps) {
               {test.description}
             </p>
 
-            {/* Target Audience Callout */}
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 flex items-start gap-2">
-              <span className="font-semibold text-slate-900 flex-shrink-0">
-                Target Audience:
-              </span>
-              <span>{test.targetAudience}</span>
-            </div>
+            {/* Tags / Search Discovery Badges */}
+            {test.tags && test.tags.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <span className="text-xs font-semibold text-slate-500 mr-1">Tags:</span>
+                {test.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/explore?q=${encodeURIComponent(tag)}`}
+                    className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 hover:border-indigo-200 transition-colors"
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            ) : test.targetAudience ? (
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 flex items-start gap-2 mb-4">
+                <span className="font-semibold text-slate-900 flex-shrink-0">
+                  Target Audience:
+                </span>
+                <span>{test.targetAudience}</span>
+              </div>
+            ) : null}
           </div>
 
           {/* Key Specifications Grid */}

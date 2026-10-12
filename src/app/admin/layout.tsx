@@ -56,7 +56,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileSidebarOpen(false)}
           />
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-slate-900 z-10">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white z-10">
             <AdminSidebar onCloseMobile={() => setMobileSidebarOpen(false)} />
           </div>
         </div>
@@ -74,7 +74,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <AdminAuthProvider>
-      <React.Suspense fallback={<div className="min-h-screen bg-slate-900" />}>
+      <React.Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
         <AdminLayoutContent>{children}</AdminLayoutContent>
       </React.Suspense>
     </AdminAuthProvider>

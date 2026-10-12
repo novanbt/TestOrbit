@@ -22,19 +22,53 @@ function dispatchUpdateEvent() {
 }
 
 /**
+ * Derives clean searchable tags from test metadata when not explicitly defined
+ */
+export function deriveTagsForTest(test: {
+  categoryName?: string;
+  targetAudience?: string;
+  title?: string;
+  tags?: string[];
+}): string[] {
+  if (test.tags && Array.isArray(test.tags) && test.tags.length > 0) {
+    return test.tags;
+  }
+  const tags: string[] = [];
+  if (test.categoryName) {
+    const cleaned = test.categoryName.replace(/Exams|Education|Certification|Development/gi, "").trim();
+    if (cleaned) tags.push(cleaned);
+  }
+  if (test.targetAudience) {
+    const raw = test.targetAudience
+      .replace(/preparing for|students|aspirants|stream|candidates|targeting/gi, "")
+      .split(/[,;&]|\band\b/i)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 3 && s.length <= 25);
+    tags.push(...raw);
+  }
+  const unique = Array.from(new Set(tags.filter(Boolean))).slice(0, 4);
+  return unique.length > 0 ? unique : ["Comprehensive"];
+}
+
+/**
  * -------------------------------------------------------------
  * 1. MOCK TESTS STORAGE
  * -------------------------------------------------------------
  */
 export function getAdminTests(): MockTest[] {
-  if (!isClient()) return MOCK_TESTS;
-  try {
-    const saved = localStorage.getItem(STORAGE_KEYS.TESTS);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch {}
-  return MOCK_TESTS;
+  let list: MockTest[] = MOCK_TESTS;
+  if (isClient()) {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TESTS);
+      if (saved) {
+        list = JSON.parse(saved);
+      }
+    } catch {}
+  }
+  return list.map((t) => ({
+    ...t,
+    tags: t.tags && t.tags.length > 0 ? t.tags : deriveTagsForTest(t),
+  }));
 }
 
 export function getAdminTestBySlug(slug: string): MockTest | undefined {
@@ -174,14 +208,19 @@ export function deleteAdminTestQuestion(testSlug: string, questionId: string): v
  * -------------------------------------------------------------
  */
 export function getAdminSeries(): TestSeries[] {
-  if (!isClient()) return TEST_SERIES;
-  try {
-    const saved = localStorage.getItem(STORAGE_KEYS.SERIES);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch {}
-  return TEST_SERIES;
+  let list: TestSeries[] = TEST_SERIES;
+  if (isClient()) {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SERIES);
+      if (saved) {
+        list = JSON.parse(saved);
+      }
+    } catch {}
+  }
+  return list.map((s) => ({
+    ...s,
+    tags: s.tags && s.tags.length > 0 ? s.tags : deriveTagsForTest(s),
+  }));
 }
 
 export function getAdminSeriesBySlug(slug: string): TestSeries | undefined {

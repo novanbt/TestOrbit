@@ -29,7 +29,8 @@ export default function CreateTestPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
+  const [tags, setTags] = useState<string[]>(["Class 10", "CBSE", "Board Exam"]);
+  const [tagInput, setTagInput] = useState("");
   const [description, setDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [questionCount, setQuestionCount] = useState(25);
@@ -70,6 +71,26 @@ export default function CreateTestPage() {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
     setSlug(generated);
+  };
+
+  const handleAddTag = (tagToAdd?: string) => {
+    const val = (tagToAdd || tagInput).trim().replace(/^#/, "");
+    if (!val) return;
+    if (!tags.some((t) => t.toLowerCase() === val.toLowerCase())) {
+      setTags([...tags, val]);
+    }
+    setTagInput("");
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter((t) => t !== tagToRemove));
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      handleAddTag();
+    }
   };
 
   const handleAddTopic = () => {
@@ -120,7 +141,8 @@ export default function CreateTestPage() {
       title: title.trim(),
       categoryId: categoryId || "cat-competitive",
       categoryName,
-      targetAudience: targetAudience.trim() || "Students preparing for competitive assessments",
+      tags: tags.length > 0 ? tags : ["General"],
+      targetAudience: tags.join(", ") || "All Students",
       description: description.trim() || `Full mock examination simulation for ${title.trim()}.`,
       questionCount: Number(questionCount) || 20,
       durationMinutes: Number(durationMinutes) || 60,
@@ -251,16 +273,63 @@ export default function CreateTestPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Target Audience
-              </label>
-              <input
-                type="text"
-                value={targetAudience}
-                onChange={(e) => setTargetAudience(e.target.value)}
-                placeholder="e.g., JEE Main 2026 aspirants aiming for 99+ percentile"
-                className="block w-full px-3.5 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Search & Discovery Tags
+                </label>
+                <span className="text-[11px] text-slate-400">Press Enter or comma to add</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 p-2.5 min-h-[46px] bg-slate-50/50 border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500 focus-within:bg-white mb-2">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80"
+                  >
+                    <span>#{tag}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(tag)}
+                      className="hover:text-indigo-900 ml-0.5 cursor-pointer text-indigo-400 hover:text-indigo-700"
+                      title="Remove tag"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder={tags.length === 0 ? "Type tag (e.g. CBSE, Class 10, JEE) and press Enter..." : "Add more tags..."}
+                  className="flex-1 min-w-[140px] bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none py-1"
+                />
+                {tagInput.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => handleAddTag()}
+                    className="px-2 py-1 rounded bg-indigo-600 text-white text-xs font-medium cursor-pointer"
+                  >
+                    Add
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-[11px] text-slate-400">Popular:</span>
+                {["Class 10", "Class 12", "CBSE", "JEE Main", "NEET", "Board Exam", "Mathematics", "Science", "PYQ"].map(
+                  (suggested) => (
+                    <button
+                      key={suggested}
+                      type="button"
+                      onClick={() => handleAddTag(suggested)}
+                      disabled={tags.some((t) => t.toLowerCase() === suggested.toLowerCase())}
+                      className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    >
+                      +{suggested}
+                    </button>
+                  )
+                )}
+              </div>
             </div>
 
             <div>
@@ -518,6 +587,22 @@ export default function CreateTestPage() {
               <h4 className="text-sm font-bold text-slate-900 line-clamp-2">
                 {title || "Untitled Mock Test"}
               </h4>
+
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {tags.slice(0, 3).map((t) => (
+                    <span
+                      key={t}
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-medium"
+                    >
+                      #{t}
+                    </span>
+                  ))}
+                  {tags.length > 3 && (
+                    <span className="text-[10px] text-slate-400 self-center">+{tags.length - 3}</span>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center gap-3 text-xs text-slate-500">
                 <div className="flex items-center gap-1">

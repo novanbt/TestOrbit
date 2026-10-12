@@ -91,7 +91,7 @@ describe("TestOrbit Marketplace Core Tests", () => {
     for (const s of seriesList) {
       assert.ok(s.slug, "Series must have slug");
       assert.ok(s.includedTestsCount > 1, "Series must bundle multiple tests");
-      assert.ok(s.targetAudience.length > 0, "Series must specify target audience");
+      assert.ok((s.targetAudience?.length ?? 0) > 0 || (s.tags?.length ?? 0) > 0, "Series must specify target audience or tags");
     }
 
     const jeeSeries = getTestSeriesBySlug("jee-main-full-spectrum-bundle");

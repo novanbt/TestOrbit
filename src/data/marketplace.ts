@@ -11,6 +11,7 @@ export interface MarketplaceItem {
   categoryId: string;
   categoryName: string;
   targetAudience: string;
+  tags?: string[];
   description: string;
   priceInPaise: number;
   originalPriceInPaise?: number;
@@ -34,7 +35,8 @@ export function getAllMarketplaceItems(): MarketplaceItem[] {
     title: t.title,
     categoryId: t.categoryId,
     categoryName: t.categoryName,
-    targetAudience: t.targetAudience,
+    targetAudience: t.targetAudience || "",
+    tags: t.tags || [],
     description: t.description,
     priceInPaise: t.priceInPaise,
     isFree: t.isFree || t.priceInPaise === 0,
@@ -54,7 +56,8 @@ export function getAllMarketplaceItems(): MarketplaceItem[] {
     title: s.title,
     categoryId: s.categoryId,
     categoryName: s.categoryName,
-    targetAudience: s.targetAudience,
+    targetAudience: s.targetAudience || "",
+    tags: s.tags || [],
     description: s.description,
     priceInPaise: s.priceInPaise,
     originalPriceInPaise: s.originalPriceInPaise,
@@ -106,15 +109,20 @@ export function filterMarketplaceItems(filters: FilterState): MarketplaceItem[] 
     }
   }
 
-  // 5. Search Query
+  // 5. Search Query (Matches title, description, category, tags, and audience)
   if (filters.searchQuery && filters.searchQuery.trim().length > 0) {
-    const q = filters.searchQuery.toLowerCase().trim();
+    const rawQ = filters.searchQuery.toLowerCase().trim();
+    const cleanQ = rawQ.replace(/^#/, "");
     items = items.filter((i) => {
-      const matchTitle = i.title.toLowerCase().includes(q);
-      const matchDesc = i.description.toLowerCase().includes(q);
-      const matchCat = i.categoryName.toLowerCase().includes(q);
-      const matchAudience = i.targetAudience.toLowerCase().includes(q);
-      return matchTitle || matchDesc || matchCat || matchAudience;
+      const matchTitle = i.title.toLowerCase().includes(rawQ) || i.title.toLowerCase().includes(cleanQ);
+      const matchDesc = i.description.toLowerCase().includes(rawQ) || i.description.toLowerCase().includes(cleanQ);
+      const matchCat = i.categoryName.toLowerCase().includes(rawQ) || i.categoryName.toLowerCase().includes(cleanQ);
+      const matchAudience = (i.targetAudience || "").toLowerCase().includes(rawQ) || (i.targetAudience || "").toLowerCase().includes(cleanQ);
+      const matchTags = Array.isArray(i.tags) && i.tags.some((t) => {
+        const lowerT = t.toLowerCase();
+        return lowerT.includes(cleanQ) || lowerT.includes(rawQ);
+      });
+      return matchTitle || matchDesc || matchCat || matchAudience || matchTags;
     });
   }
 
