@@ -15,6 +15,9 @@ export function formatPriceInRupees(paise: number): string {
   }).format(rupees);
 }
 
+export const formatCurrency = formatPriceInRupees;
+
+
 export function formatDuration(minutes: number): string {
   if (minutes < 60) {
     return `${minutes} mins`;

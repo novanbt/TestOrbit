@@ -8,8 +8,8 @@ import { usePathname } from "next/navigation";
 export default function Footer() {
   const pathname = usePathname();
 
-  // Hide footer on active CBT examination window
-  if (pathname?.endsWith("/take") || pathname?.includes("/take/")) {
+  // Hide footer on active CBT examination window and admin pages
+  if (pathname?.startsWith("/admin") || pathname?.endsWith("/take") || pathname?.includes("/take/")) {
     return null;
   }
 
@@ -69,10 +69,10 @@ export default function Footer() {
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
           <div className="flex items-center gap-3">
             <p>© 2026 TestOrbit. All rights reserved.</p>
-            <span className="text-slate-300">•</span>
+            <span>•</span>
             <Link
-              href="/admin"
-              className="text-slate-400 hover:text-slate-600 transition-colors text-[11px]"
+              href="/admin/login"
+              className="text-slate-400 hover:text-slate-600 transition-colors"
             >
               Admin
             </Link>
