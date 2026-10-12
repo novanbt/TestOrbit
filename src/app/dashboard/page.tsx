@@ -177,7 +177,7 @@ export default function DashboardPage() {
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Target: <span className="font-semibold text-slate-700">{dashboardData.targetExam}</span> • Tracking live mock test readiness & Firestore analytics
+              Target: <span className="font-semibold text-slate-700">{dashboardData.targetExam}</span> • Track your mock test performance and syllabus readiness
             </p>
           </div>
         </div>
@@ -606,20 +606,6 @@ export default function DashboardPage() {
                   <span className="font-medium text-slate-900">{formattedDate}</span>
                 </div>
                 <Calendar className="w-4 h-4 text-slate-400" />
-              </div>
-
-              <div className="pt-2 border-t border-slate-100">
-                <span className="text-slate-400 block text-[11px] mb-1">
-                  Authentication & Database
-                </span>
-                <div className="flex items-center gap-1.5 text-slate-700">
-                  <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>
-                    {isFirebaseConfigured
-                      ? "Firebase Auth & Firestore Active"
-                      : "Verified Student Session"}
-                  </span>
-                </div>
               </div>
             </div>
 

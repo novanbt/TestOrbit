@@ -137,32 +137,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Firebase Status Banner */}
-        <div className="mt-6">
-          {isFirebaseConfigured ? (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2.5 text-xs text-emerald-800">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-              <span>
-                <strong>Firebase Auth Connected:</strong> Live user session management is active.
-              </span>
-            </div>
-          ) : (
-            <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-xl flex items-start gap-3 text-xs text-slate-700">
-              <KeyRound className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <div className="flex items-center gap-1.5 font-semibold text-slate-900 mb-0.5">
-                  <span>Student Sign In</span>
-                  <Badge variant="success" size="sm">
-                    Instant Access
-                  </Badge>
-                </div>
-                <p className="text-slate-600 leading-relaxed text-[11px]">
-                  Sign in with any student email to unlock your dashboard preview.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
 
         <div className="mt-5 bg-white py-8 px-6 shadow-xs border border-slate-200 rounded-xl sm:px-10">
           {/* Error & Success Messages */}
