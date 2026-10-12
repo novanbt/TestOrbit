@@ -67,7 +67,16 @@ export default function Footer() {
         </div>
 
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <p>© 2026 TestOrbit. All rights reserved.</p>
+          <div className="flex items-center gap-3">
+            <p>© 2026 TestOrbit. All rights reserved.</p>
+            <span className="text-slate-300">•</span>
+            <Link
+              href="/admin"
+              className="text-slate-400 hover:text-slate-600 transition-colors text-[11px]"
+            >
+              Admin
+            </Link>
+          </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span>Curriculum-Aligned Assessment Platform</span>
