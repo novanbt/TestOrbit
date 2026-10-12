@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -36,9 +37,13 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} h-full scroll-smooth antialiased`}>
       <body className="min-h-full flex flex-col bg-white text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
         <AuthProvider>
-          <Header />
+          <Suspense fallback={<div className="h-16 border-b border-slate-200 bg-white" />}>
+            <Header />
+          </Suspense>
           <main className="flex-1 flex flex-col">{children}</main>
-          <Footer />
+          <Suspense fallback={null}>
+            <Footer />
+          </Suspense>
         </AuthProvider>
       </body>
     </html>
