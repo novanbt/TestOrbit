@@ -6,6 +6,8 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   sendEmailVerification,
+  signInWithPopup,
+  GoogleAuthProvider,
   onAuthStateChanged,
   updateProfile,
   User as FirebaseUser,
@@ -37,6 +39,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, name?: string) => Promise<SignUpResult>;
   signIn: (email: string, password: string) => Promise<SignInResult>;
+  signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
 }
 
@@ -45,6 +48,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   signUp: async () => ({ success: false, error: "Not initialized" }),
   signIn: async () => ({ success: false, error: "Not initialized" }),
+  signInWithGoogle: async () => ({ success: false, error: "Not initialized" }),
   signOut: async () => {},
 });
 
@@ -67,11 +71,19 @@ function formatAuthError(error: unknown): string {
       case "auth/too-many-requests":
         return "Access to this account has been temporarily disabled due to many failed login attempts. Please try again later.";
       case "auth/operation-not-allowed":
-        return "Email/Password sign-in is not enabled in Firebase Console. Please enable it under Authentication > Sign-in method.";
+        return "This sign-in provider is not enabled in Firebase Console. Please enable it under Authentication > Sign-in method.";
       case "auth/network-request-failed":
         return "Network request failed. Please check your internet connection.";
       case "auth/user-disabled":
         return "This account has been disabled. Please contact support.";
+      case "auth/popup-closed-by-user":
+        return "Google sign-in was cancelled.";
+      case "auth/cancelled-popup-request":
+        return "Sign-in request was cancelled.";
+      case "auth/popup-blocked":
+        return "Google sign-in popup was blocked by your browser. Please allow popups for this site.";
+      case "auth/unauthorized-domain":
+        return "This domain is not authorized for Google Sign-In in Firebase Console. Please add it under Authentication > Settings > Authorized domains.";
       default:
         return (
           err.message.replace(/^Firebase:\s*(Error\s*)?(\(auth\/[^)]+\)\.?\s*)?/i, "") ||
@@ -95,9 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        // Enforce email verification requirement:
-        // Do NOT treat unverified users as logged in
-        if (!firebaseUser.emailVerified) {
+        // Enforce email verification requirement for password users:
+        // Google accounts are verified by Google automatically.
+        if (!firebaseUser.emailVerified && firebaseUser.providerData.some(p => p.providerId === "password")) {
           setUser(null);
           try {
             localStorage.removeItem(STORAGE_KEY);
@@ -257,6 +269,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!isFirebaseConfigured) {
+      const demoUser: UserProfile = {
+        id: "google_usr_" + Math.random().toString(36).substring(2, 9),
+        email: "student.google@testorbit.in",
+        name: "Google Student",
+        createdAt: new Date().toISOString(),
+      };
+      setUser(demoUser);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(demoUser));
+      } catch {}
+      return { success: true };
+    }
+
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const result = await signInWithPopup(auth, provider);
+      const googleUser = result.user;
+
+      const userObj: UserProfile = {
+        id: googleUser.uid,
+        email: googleUser.email || "",
+        name: googleUser.displayName || googleUser.email?.split("@")[0] || "Student",
+        createdAt: googleUser.metadata.creationTime || new Date().toISOString(),
+      };
+      setUser(userObj);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(userObj));
+      } catch {}
+      return { success: true };
+    } catch (err: unknown) {
+      return {
+        success: false,
+        error: formatAuthError(err),
+      };
+    }
+  };
+
   const signOut = async () => {
     if (isFirebaseConfigured) {
       try {
@@ -272,7 +324,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );
