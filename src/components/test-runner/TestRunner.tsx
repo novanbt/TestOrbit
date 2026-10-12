@@ -26,6 +26,8 @@ import { MockTest, TestQuestion, QuestionAttemptStatus, TestAttemptScorecard } f
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatDuration } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import { saveUserAttempt } from "@/lib/firebase/firestoreService";
 
 interface TestRunnerProps {
   test: MockTest;
@@ -33,8 +35,10 @@ interface TestRunnerProps {
 }
 
 export function TestRunner({ test, questions }: TestRunnerProps) {
+  const { user } = useAuth();
   // Test state
   const totalQuestions = questions.length;
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, "A" | "B" | "C" | "D">>({});
   const [markedForReview, setMarkedForReview] = useState<Record<string, boolean>>({});
@@ -217,6 +221,13 @@ export function TestRunner({ test, questions }: TestRunnerProps) {
     setScorecard(finalScorecard);
     setIsCompleted(true);
     setShowSubmitModal(false);
+
+    // Persist attempt to Firestore under /users/{userId}/attempts
+    if (user?.id) {
+      saveUserAttempt(user.id, test, finalScorecard).catch((err) => {
+        console.warn("Could not save attempt to Firestore:", err);
+      });
+    }
   };
 
   // Retake Test

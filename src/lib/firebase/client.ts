@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
 
 // Firebase configuration for TestOrbit web application
 export const firebaseConfig = {
@@ -20,3 +21,5 @@ export const isFirebaseConfigured = Boolean(
 // Initialize Firebase cleanly without duplicate instances during Next.js fast refresh
 export const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth: Auth = getAuth(app);
+export const db: Firestore = getFirestore(app);
+
