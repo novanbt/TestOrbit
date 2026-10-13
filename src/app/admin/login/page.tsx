@@ -103,7 +103,7 @@ export default function AdminLoginPage() {
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="testorbit@ellipse.com"
+                placeholder="Enter administrator email"
                 className="w-full h-10 pl-9 pr-3 text-xs bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
               />
             </div>
@@ -121,7 +121,7 @@ export default function AdminLoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Enter administrator password"
                 className="w-full h-10 pl-9 pr-3 text-xs bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
               />
             </div>

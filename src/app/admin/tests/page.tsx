@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { StudioBadge, StudioEmptyState } from "@/components/admin/StudioUI";
 import { fetchCanonicalTests } from "@/lib/data/testService";
-import { saveMockTestAction, deleteMockTestAction } from "@/app/actions/adminStudioActions";
+import { saveMockTestAction, deleteMockTestAction, bulkDeleteMockTestsAction } from "@/app/actions/adminStudioActions";
 import { MockTest } from "@/types";
 import { CATEGORIES } from "@/data/categories";
 
@@ -37,6 +37,8 @@ export default function AllTestsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [testToDelete, setTestToDelete] = useState<MockTest | null>(null);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadTests = async () => {
@@ -132,12 +134,40 @@ export default function AllTestsPage() {
     const res = await deleteMockTestAction(testToDelete.id, testToDelete.slug);
     if (res.success) {
       setTests((prev) => prev.filter((t) => t.id !== testToDelete.id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(testToDelete.id);
+        return next;
+      });
       showFeedback("success", `Permanently deleted "${testToDelete.title}".`);
     } else {
       showFeedback("error", res.error || "Failed to delete test.");
     }
     setTestToDelete(null);
     setActionInProgress(null);
+  };
+
+  // Confirm Bulk Delete
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+
+    const itemsToDelete = tests
+      .filter((t) => selectedIds.has(t.id))
+      .map((t) => ({ id: t.id, slug: t.slug }));
+
+    const res = await bulkDeleteMockTestsAction(itemsToDelete);
+    if (res.success) {
+      const deletedCount = res.data ?? itemsToDelete.length;
+      setTests((prev) => prev.filter((t) => !selectedIds.has(t.id)));
+      setSelectedIds(new Set());
+      setShowBulkDeleteModal(false);
+      showFeedback("success", `Permanently deleted ${deletedCount} selected mock test${deletedCount > 1 ? "s" : ""}.`);
+    } else {
+      showFeedback("error", res.error || "Failed to delete selected tests.");
+    }
+
+    setBulkDeleting(false);
   };
 
   // Bulk Actions
@@ -265,18 +295,28 @@ export default function AllTestsPage() {
 
         {/* Selected Counter & Bulk Bar */}
         {selectedIds.size > 0 && (
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-indigo-700 bg-indigo-50/60 p-2 rounded-xl">
-            <span>
-              <strong>{selectedIds.size}</strong> test(s) selected
+          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-indigo-700 bg-indigo-50/70 p-2.5 rounded-xl border border-indigo-100 animate-in fade-in">
+            <span className="font-semibold text-indigo-900">
+              {selectedIds.size} test{selectedIds.size > 1 ? "s" : ""} selected
             </span>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedIds(new Set())}
-                className="text-xs h-7"
+                className="text-xs h-8 bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
               >
                 Clear Selection
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowBulkDeleteModal(true)}
+                disabled={bulkDeleting}
+                className="text-xs h-8 bg-rose-600 hover:bg-rose-700 text-white border-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Selected ({selectedIds.size})</span>
               </Button>
             </div>
           </div>
@@ -471,7 +511,7 @@ export default function AllTestsPage() {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Single Delete Confirmation Modal */}
       {testToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
           <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-4">
@@ -506,6 +546,58 @@ export default function AllTestsPage() {
                 className="bg-rose-600 hover:bg-rose-700 text-xs"
               >
                 Delete Test
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Permanently Delete {selectedIds.size} Selected Mock Test{selectedIds.size > 1 ? "s" : ""}?
+              </h3>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                Are you sure you want to delete the <strong className="text-slate-900 font-semibold">{selectedIds.size} selected test{selectedIds.size > 1 ? "s" : ""}</strong>? 
+                This will permanently remove these tests and their associated questions from the canonical database. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkDeleting}
+                onClick={() => setShowBulkDeleteModal(false)}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={bulkDeleting}
+                onClick={handleConfirmBulkDelete}
+                className="bg-rose-600 hover:bg-rose-700 text-xs flex items-center gap-1.5 text-white"
+              >
+                {bulkDeleting ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete {selectedIds.size} Tests</span>
+                  </>
+                )}
               </Button>
             </div>
           </div>

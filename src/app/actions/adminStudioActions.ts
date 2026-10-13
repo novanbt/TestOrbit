@@ -180,6 +180,40 @@ export async function deleteMockTestAction(id: string, slug?: string): Promise<S
   }
 }
 
+export async function bulkDeleteMockTestsAction(
+  items: { id: string; slug?: string }[]
+): Promise<ServerActionResponse<number>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    if (!items || items.length === 0) {
+      return { success: true, data: 0 };
+    }
+
+    let count = 0;
+    for (const item of items) {
+      await deleteCanonicalTest(item.id, item.slug);
+      count++;
+    }
+
+    await logAuditEvent("bulk_delete_tests", "test", "bulk", `Bulk deleted ${count} mock tests.`);
+
+    try {
+      revalidatePath("/");
+      revalidatePath("/explore");
+      revalidatePath("/admin/tests");
+    } catch {}
+
+    return { success: true, data: count };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
 /**
  * -------------------------------------------------------------
  * 4. QUESTION BANK & QUESTIONS ACTIONS
