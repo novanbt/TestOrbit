@@ -164,7 +164,7 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
             <Search className="w-4 h-4" />
           </div>
           <input
-            type="search"
+            type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search exams, subjects, skills..."
