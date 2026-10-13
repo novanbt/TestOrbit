@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/Button";
 import { loginAdminAction } from "@/app/actions/adminStudioActions";
 import { useAdminStudio } from "@/context/AdminStudioContext";
@@ -41,6 +43,13 @@ export default function AdminLoginPage() {
     try {
       const res = await loginAdminAction(email, password);
       if (res.success) {
+        if (auth && isFirebaseConfigured) {
+          try {
+            await signInWithEmailAndPassword(auth, email.trim(), password);
+          } catch (clientAuthErr) {
+            console.warn("Client auth sign-in notice:", clientAuthErr);
+          }
+        }
         await refreshSession();
         const destination = from.startsWith("/admin") && from !== "/admin/login" ? from : "/admin";
         router.push(destination);

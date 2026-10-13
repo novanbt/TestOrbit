@@ -1,21 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Users, Search, Award, ShoppingCart, CheckCircle, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Users, Search } from "lucide-react";
 import { StudioBadge, StudioEmptyState } from "@/components/admin/StudioUI";
 import { collection, getDocs } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "@/lib/firebase/client";
-
-interface LearnerRecord {
-  id: string;
-  name?: string;
-  email: string;
-  createdAt?: string;
-  targetExam?: string;
-  totalAttempts?: number;
-  avgAccuracy?: number;
-}
+import { getLearnersAction, LearnerRecord } from "@/app/actions/adminStudioActions";
 
 export default function LearnersAdminPage() {
   const [learners, setLearners] = useState<LearnerRecord[]>([]);
@@ -24,21 +14,38 @@ export default function LearnersAdminPage() {
 
   useEffect(() => {
     async function loadLearners() {
+      try {
+        const res = await getLearnersAction();
+        if (res.success && res.data) {
+          setLearners(res.data);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.warn("Failed to load learners via action, fallback to client:", e);
+      }
+
       const list: LearnerRecord[] = [];
       if (isFirebaseConfigured && db) {
         try {
           const snap = await getDocs(collection(db, "users"));
           snap.forEach((d) => {
             const data = d.data();
-            list.push({
-              id: d.id,
-              name: data.name || data.displayName || "Learner",
-              email: data.email || "student@testorbit.in",
-              createdAt: data.createdAt || new Date().toISOString(),
-              targetExam: data.targetExam || "JEE Main & Advanced 2026",
-              totalAttempts: data.totalAttempts || 0,
-              avgAccuracy: data.avgAccuracy || 0,
-            });
+            if (
+              data.email !== "testorbit@ellipse.com" &&
+              data.role !== "admin" &&
+              (data.email || data.name)
+            ) {
+              list.push({
+                id: d.id,
+                name: data.name || data.displayName || data.email?.split("@")[0] || "Learner",
+                email: data.email || "",
+                createdAt: data.createdAt || new Date().toISOString(),
+                targetExam: data.targetExam || "JEE Main & Advanced 2026",
+                totalAttempts: data.totalAttempts || 0,
+                avgAccuracy: data.avgAccuracy || 0,
+              });
+            }
           });
         } catch {}
       }

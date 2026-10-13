@@ -8,6 +8,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "@/lib/firebase/client";
+import { ensureAdminAuthenticated } from "@/lib/firebase/serverAuth";
 import {
   AdminDashboardMetrics,
   AuditLog,
@@ -47,9 +48,21 @@ export async function getStudioDashboardMetrics(): Promise<AdminDashboardMetrics
 
   if (isFirebaseConfigured && db) {
     try {
-      // 1. Learners count
+      await ensureAdminAuthenticated();
+      // 1. Learners count (exclude admin to display actual registered candidate accounts)
       const usersSnap = await getDocs(collection(db, "users"));
-      totalLearners = usersSnap.size;
+      if (!usersSnap.empty) {
+        usersSnap.forEach((d) => {
+          const data = d.data();
+          if (
+            data.email !== "testorbit@ellipse.com" &&
+            data.role !== "admin" &&
+            (data.email || data.name)
+          ) {
+            totalLearners++;
+          }
+        });
+      }
 
       // 2. Orders & Sales
       const ordersSnap = await getDocs(collection(db, "orders"));

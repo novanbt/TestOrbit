@@ -22,6 +22,7 @@ import {
 } from "@/lib/admin/adminAuth";
 import {
   AdminUser,
+  AdminDashboardMetrics,
   AuditLog,
   AdminNotification,
   CommerceOrder,
@@ -37,6 +38,17 @@ import { saveCanonicalTest, deleteCanonicalTest, bulkDeleteCanonicalTests } from
 import { saveCanonicalBundle, deleteCanonicalBundle } from "@/lib/data/bundleService";
 import { saveCanonicalCategory, deleteCanonicalCategory } from "@/lib/data/categoryService";
 import { saveCanonicalSubject, deleteCanonicalSubject, SubjectTaxonomy } from "@/lib/data/taxonomyService";
+import { getStudioDashboardMetrics } from "@/lib/admin/adminDataService";
+
+export interface LearnerRecord {
+  id: string;
+  name?: string;
+  email: string;
+  createdAt?: string;
+  targetExam?: string;
+  totalAttempts?: number;
+  avgAccuracy?: number;
+}
 
 export interface ServerActionResponse<T = unknown> {
   success: boolean;
@@ -768,6 +780,64 @@ export async function toggleNotificationReadAction(id: string, read: boolean): P
     revalidatePath("/admin/notifications");
 
     return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * -------------------------------------------------------------
+ * 14. AUTHORITATIVE DASHBOARD & LEARNER ACTIONS
+ * -------------------------------------------------------------
+ */
+export async function getStudioDashboardMetricsAction(): Promise<ServerActionResponse<AdminDashboardMetrics>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    const metrics = await getStudioDashboardMetrics();
+    return { success: true, data: metrics };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function getLearnersAction(): Promise<ServerActionResponse<LearnerRecord[]>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    const list: LearnerRecord[] = [];
+    if (isFirebaseConfigured && db) {
+      const snap = await getDocs(collection(db, "users"));
+      snap.forEach((d) => {
+        const data = d.data();
+        if (
+          data.email !== "testorbit@ellipse.com" &&
+          data.role !== "admin" &&
+          (data.email || data.name)
+        ) {
+          list.push({
+            id: d.id,
+            name: data.name || data.displayName || data.email?.split("@")[0] || "Learner",
+            email: data.email || "",
+            createdAt: data.createdAt || new Date().toISOString(),
+            targetExam: data.targetExam || "JEE Main & Advanced 2026",
+            totalAttempts: data.totalAttempts || 0,
+            avgAccuracy: data.avgAccuracy || 0,
+          });
+        }
+      });
+    }
+    return { success: true, data: list };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return { success: false, error: msg };

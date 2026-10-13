@@ -20,21 +20,16 @@ describe("TestOrbit Marketplace Core Tests", () => {
       "professional-skills",
     ];
 
-    const expectedCounts: Record<string, number> = {
-      "school-education": 15,
-      "competitive-exams": 29,
-      "college-university": 16,
-      "programming-technology": 23,
-      "languages": 25,
-      "professional-skills": 11,
-    };
-
+    const allTests = getAllTests();
     for (const slug of expectedSlugs) {
       const cat = getCategoryBySlug(slug);
       assert.ok(cat, `Category ${slug} must exist`);
       assert.ok(cat.name.length > 0, `Category ${slug} must have a title`);
       assert.ok(cat.description.length > 0, `Category ${slug} must have a description`);
-      assert.equal(cat.testCount, expectedCounts[slug], `Category ${slug} testCount must be ${expectedCounts[slug]}`);
+      const countInCat = allTests.filter(
+        (t) => t.categoryId === cat.id || t.categoryName?.toLowerCase() === cat.name.toLowerCase()
+      ).length;
+      assert.equal(cat.testCount, countInCat, `Category ${slug} testCount must be dynamically synced to ${countInCat}`);
     }
   });
 

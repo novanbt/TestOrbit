@@ -8,6 +8,7 @@ import {
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "@/lib/firebase/client";
 import { ensureAdminAuthenticated } from "@/lib/firebase/serverAuth";
+import { getAllCanonicalPublishedTests } from "@/lib/data/testService";
 import { Category } from "@/types";
 
 export const BASE_CATEGORIES: Category[] = [
@@ -17,7 +18,7 @@ export const BASE_CATEGORIES: Category[] = [
     slug: "school-education",
     iconName: "GraduationCap",
     description: "Curriculum-aligned mock assessments for Classes V–XII (CBSE, ICSE, State Boards).",
-    testCount: 15,
+    testCount: 0,
   },
   {
     id: "cat-competitive",
@@ -25,7 +26,7 @@ export const BASE_CATEGORIES: Category[] = [
     slug: "competitive-exams",
     iconName: "Target",
     description: "Standardized practice simulations for JEE, NEET, UPSC, SSC CGL, Banking & Railways.",
-    testCount: 29,
+    testCount: 0,
   },
   {
     id: "cat-college",
@@ -33,7 +34,7 @@ export const BASE_CATEGORIES: Category[] = [
     slug: "college-university",
     iconName: "Building2",
     description: "Undergraduate course mocks, semester finals, engineering fundamentals, and GATE prep.",
-    testCount: 16,
+    testCount: 0,
   },
   {
     id: "cat-programming",
@@ -41,7 +42,7 @@ export const BASE_CATEGORIES: Category[] = [
     slug: "programming-technology",
     iconName: "Code2",
     description: "Technical evaluations in Python, DSA, Web Development, Cloud Computing, and AI/ML.",
-    testCount: 23,
+    testCount: 0,
   },
   {
     id: "cat-languages",
@@ -49,7 +50,7 @@ export const BASE_CATEGORIES: Category[] = [
     slug: "languages",
     iconName: "Languages",
     description: "Evaluations across Hindi, French, German, Spanish, Sanskrit, Japanese, and English communication.",
-    testCount: 25,
+    testCount: 0,
   },
   {
     id: "cat-professional",
@@ -57,7 +58,7 @@ export const BASE_CATEGORIES: Category[] = [
     slug: "professional-skills",
     iconName: "Briefcase",
     description: "Industry readiness tests, financial analysis, business acumen, and workplace tooling.",
-    testCount: 11,
+    testCount: 0,
   },
 ];
 
@@ -134,10 +135,17 @@ export async function syncCategoriesFromFirestore(): Promise<void> {
 
 export function getAllCanonicalCategories(): Category[] {
   initCategoriesRegistry();
+  const tests = getAllCanonicalPublishedTests();
   const unique = new Map<string, Category>();
   for (const c of categoriesRegistry.values()) {
     if (!deletedCategoryIds.has(c.id)) {
-      unique.set(c.id, c);
+      const liveCount = tests.filter(
+        (t) => t.categoryId === c.id || t.categoryName?.toLowerCase() === c.name.toLowerCase()
+      ).length;
+      unique.set(c.id, {
+        ...c,
+        testCount: liveCount,
+      });
     }
   }
   return Array.from(unique.values());
@@ -153,9 +161,16 @@ export function getCanonicalCategoryBySlug(slug: string): Category | undefined {
   initCategoriesRegistry();
   if (!slug) return undefined;
   const clean = slug.trim().toLowerCase();
+  const tests = getAllCanonicalPublishedTests();
   for (const c of categoriesRegistry.values()) {
     if (c.slug.toLowerCase() === clean && !deletedCategoryIds.has(c.id)) {
-      return c;
+      const liveCount = tests.filter(
+        (t) => t.categoryId === c.id || t.categoryName?.toLowerCase() === c.name.toLowerCase()
+      ).length;
+      return {
+        ...c,
+        testCount: liveCount,
+      };
     }
   }
   return undefined;

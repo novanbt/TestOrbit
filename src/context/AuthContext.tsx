@@ -15,7 +15,8 @@ import {
   updateProfile,
   User as FirebaseUser,
 } from "firebase/auth";
-import { auth, isFirebaseConfigured } from "@/lib/firebase/client";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db, isFirebaseConfigured } from "@/lib/firebase/client";
 
 export interface UserProfile {
   id: string;
@@ -148,6 +149,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(userObj));
         } catch {}
+
+        if (db && firebaseUser.uid) {
+          setDoc(
+            doc(db, "users", firebaseUser.uid),
+            {
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "Learner",
+              createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
+              lastLoginAt: new Date().toISOString(),
+              role: firebaseUser.email === "testorbit@ellipse.com" ? "admin" : "learner",
+            },
+            { merge: true }
+          ).catch(() => {});
+        }
       } else {
         setUser(null);
         try {

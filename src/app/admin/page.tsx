@@ -6,25 +6,23 @@ import {
   BookOpen,
   Layers,
   Users,
-  Award,
   ShoppingCart,
   TrendingUp,
   PlusCircle,
-  HelpCircle,
-  FileCheck,
-  RotateCcw,
   Clock,
   ArrowRight,
-  Sparkles,
   ExternalLink,
   Flame,
+  Database,
+  CheckCircle,
 } from "lucide-react";
-import { StudioMetricCard, StudioBadge, StudioEmptyState } from "@/components/admin/StudioUI";
+import { StudioMetricCard, StudioBadge } from "@/components/admin/StudioUI";
 import { Button } from "@/components/ui/Button";
-import { getStudioDashboardMetrics, getRecentAuditLogs, getAllOrders } from "@/lib/admin/adminDataService";
+import { getStudioDashboardMetrics, getAllOrders } from "@/lib/admin/adminDataService";
+import { getStudioDashboardMetricsAction } from "@/app/actions/adminStudioActions";
 import { fetchCanonicalTests } from "@/lib/data/testService";
 import { getAllCanonicalBundles } from "@/lib/data/bundleService";
-import { AdminDashboardMetrics, AuditLog, CommerceOrder } from "@/types/admin";
+import { AdminDashboardMetrics, CommerceOrder } from "@/types/admin";
 import { MockTest, TestBundle } from "@/types";
 
 export default function StudioDashboardPage() {
@@ -32,19 +30,28 @@ export default function StudioDashboardPage() {
   const [recentTests, setRecentTests] = useState<MockTest[]>([]);
   const [recentBundles, setRecentBundles] = useState<TestBundle[]>([]);
   const [recentOrders, setRecentOrders] = useState<CommerceOrder[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
       try {
-        const [m, t, b, o, logs] = await Promise.all([
-          getStudioDashboardMetrics(),
+        let m: AdminDashboardMetrics;
+        try {
+          const actionRes = await getStudioDashboardMetricsAction();
+          if (actionRes.success && actionRes.data) {
+            m = actionRes.data;
+          } else {
+            m = await getStudioDashboardMetrics();
+          }
+        } catch {
+          m = await getStudioDashboardMetrics();
+        }
+
+        const [t, b, o] = await Promise.all([
           fetchCanonicalTests(),
           Promise.resolve(getAllCanonicalBundles()),
           getAllOrders(),
-          getRecentAuditLogs(8),
         ]);
 
         if (isMounted) {
@@ -52,7 +59,6 @@ export default function StudioDashboardPage() {
           setRecentTests(t.slice(0, 5));
           setRecentBundles(b.slice(0, 5));
           setRecentOrders(o.slice(0, 5));
-          setAuditLogs(logs);
           setLoading(false);
         }
       } catch (err) {
@@ -84,12 +90,6 @@ export default function StudioDashboardPage() {
             <Button variant="primary" size="sm" className="text-xs">
               <PlusCircle className="w-3.5 h-3.5 mr-1" />
               <span>Create Mock Test</span>
-            </Button>
-          </Link>
-          <Link href="/admin/questions">
-            <Button variant="outline" size="sm" className="text-xs">
-              <HelpCircle className="w-3.5 h-3.5 mr-1" />
-              <span>Question Bank</span>
             </Button>
           </Link>
           <Link href="/admin/series">
@@ -138,7 +138,7 @@ export default function StudioDashboardPage() {
       </div>
 
       {/* Second Row: Revenue & Commerce Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StudioMetricCard
           title="Gross Revenue (INR)"
           value={
@@ -157,18 +157,6 @@ export default function StudioDashboardPage() {
           subtitle="Verified purchase entitlements granted"
           icon={ShoppingCart}
           color="purple"
-        />
-
-        <StudioMetricCard
-          title="Refunds Total (INR)"
-          value={
-            metrics
-              ? `₹${(metrics.refundTotalInPaise / 100).toLocaleString("en-IN")}`
-              : "..."
-          }
-          subtitle="Refunded transactions recorded"
-          icon={RotateCcw}
-          color="amber"
         />
       </div>
 
@@ -300,51 +288,8 @@ export default function StudioDashboardPage() {
           </div>
         </div>
 
-        {/* Right Column: Platform Audit Log & System Status */}
+        {/* Right Column: Platform Administration & Infrastructure */}
         <div className="space-y-6">
-          {/* Audit Logs */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-3.5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-900">
-                Studio Audit Trail
-              </h2>
-              <Link
-                href="/admin/audit-logs"
-                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
-              >
-                All Logs
-              </Link>
-            </div>
-
-            {auditLogs.length > 0 ? (
-              <div className="space-y-3">
-                {auditLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-xs space-y-1"
-                  >
-                    <div className="flex items-center justify-between text-[10px] text-slate-400">
-                      <span className="font-semibold text-indigo-600 uppercase tracking-wider">
-                        {log.action.replace(/_/g, " ")}
-                      </span>
-                      <span>
-                        {new Date(log.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                    <p className="text-slate-700 leading-snug font-medium">{log.details}</p>
-                    <span className="text-[10px] text-slate-400 block truncate">
-                      by {log.actorEmail}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-xs text-slate-400">
-                No recent administrative actions recorded.
-              </div>
-            )}
-          </div>
-
           {/* Firebase Infrastructure Health Card */}
           <div className="p-5 bg-linear-to-br from-slate-900 to-indigo-950 text-white rounded-2xl shadow-sm space-y-3">
             <div className="flex items-center gap-2">
@@ -365,6 +310,26 @@ export default function StudioDashboardPage() {
                 className="text-indigo-300 hover:text-white font-medium transition-colors"
               >
                 Inspect Config →
+              </Link>
+            </div>
+          </div>
+
+          {/* Data Management & Import/Export Card */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-3">
+            <div className="flex items-center gap-2 text-slate-900">
+              <Database className="w-4 h-4 text-indigo-600" />
+              <h3 className="text-sm font-bold">Data Import & Export</h3>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Download complete JSON backups of assessment catalogs, learner profiles, and platform configuration or import existing dataset records.
+            </p>
+            <div className="pt-2 flex items-center justify-between text-xs border-t border-slate-100">
+              <span className="text-[11px] text-slate-400">JSON snapshot utility</span>
+              <Link
+                href="/admin/settings/data"
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+              >
+                Manage Backups →
               </Link>
             </div>
           </div>

@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { signOut as firebaseSignOut } from "firebase/auth";
+import { auth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { AdminUser, AdminNotification } from "@/types/admin";
 import { getActiveAdminSessionAction, logoutAdminAction } from "@/app/actions/adminStudioActions";
 
@@ -96,6 +98,11 @@ export function AdminStudioProvider({ children }: { children: React.ReactNode })
   };
 
   const signOut = async () => {
+    try {
+      if (auth && isFirebaseConfigured) {
+        await firebaseSignOut(auth).catch(() => {});
+      }
+    } catch {}
     await logoutAdminAction();
     setAdmin(null);
     router.push("/admin/login");

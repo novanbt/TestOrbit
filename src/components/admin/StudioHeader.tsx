@@ -10,15 +10,11 @@ import {
   Bell,
   ExternalLink,
   ChevronDown,
-  User,
   LogOut,
-  Shield,
+  Flame,
+  Database,
   Layers,
   BookOpen,
-  HelpCircle,
-  FileCheck,
-  Check,
-  X,
 } from "lucide-react";
 import { useAdminStudio } from "@/context/AdminStudioContext";
 import { Button } from "@/components/ui/Button";
@@ -99,7 +95,7 @@ export function StudioHeader() {
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search tests, question bank, series, orders..."
+            placeholder="Search tests, series, orders, learners..."
             className="w-full h-9 pl-9 pr-3 rounded-lg bg-slate-50 hover:bg-slate-100/70 focus:bg-white text-xs border border-slate-200/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all outline-none"
           />
         </form>
@@ -137,28 +133,12 @@ export function StudioHeader() {
                 <span>New Mock Test</span>
               </Link>
               <Link
-                href="/admin/questions"
-                onClick={() => setCreateMenuOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
-              >
-                <HelpCircle className="w-4 h-4 text-emerald-600" />
-                <span>Add Question to Bank</span>
-              </Link>
-              <Link
                 href="/admin/series"
                 onClick={() => setCreateMenuOpen(false)}
                 className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
               >
                 <Layers className="w-4 h-4 text-blue-600" />
                 <span>New Test Series Bundle</span>
-              </Link>
-              <Link
-                href="/admin/assignments"
-                onClick={() => setCreateMenuOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
-              >
-                <FileCheck className="w-4 h-4 text-purple-600" />
-                <span>Curate Assignment Pack</span>
               </Link>
             </div>
           )}
@@ -269,20 +249,20 @@ export function StudioHeader() {
 
               <div className="py-1">
                 <Link
-                  href="/admin/settings"
+                  href="/admin/settings/integrations"
                   onClick={() => setUserMenuOpen(false)}
                   className="flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
                 >
-                  <Shield className="w-4 h-4 text-slate-400" />
-                  <span>Studio Settings & Roles</span>
+                  <Flame className="w-4 h-4 text-amber-500" />
+                  <span>Firebase Status</span>
                 </Link>
                 <Link
-                  href="/admin/audit-logs"
+                  href="/admin/settings/data"
                   onClick={() => setUserMenuOpen(false)}
                   className="flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
                 >
-                  <User className="w-4 h-4 text-slate-400" />
-                  <span>Audit Trail</span>
+                  <Database className="w-4 h-4 text-indigo-500" />
+                  <span>Data Import/Export</span>
                 </Link>
               </div>
 
