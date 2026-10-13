@@ -354,11 +354,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await sendPasswordResetEmail(auth, trimmedEmail, {
           url: continueUrl,
-          handleCodeInApp: false,
+          handleCodeInApp: true,
         });
       } catch (acsErr: unknown) {
         const acsCode = (acsErr as { code?: string })?.code;
-        if (acsCode === "auth/unauthorized-continue-uri") {
+        if (
+          acsCode === "auth/unauthorized-continue-uri" ||
+          acsCode === "auth/invalid-continue-uri"
+        ) {
           // If domain isn't authorized for continue URL yet, fallback cleanly
           await sendPasswordResetEmail(auth, trimmedEmail);
         } else {
