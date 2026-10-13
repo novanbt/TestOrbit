@@ -117,19 +117,18 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
-    if (searchQuery.trim().length > 0) count++;
     if (selectedCategory !== "all") count++;
     if (selectedType !== "all") count++;
     if (selectedDifficulty !== "all") count++;
     if (selectedPriceRange !== "all") count++;
     return count;
   }, [
-    searchQuery,
     selectedCategory,
     selectedType,
     selectedDifficulty,
     selectedPriceRange,
   ]);
+
 
   const resetAllFilters = () => {
     setSearchQuery("");
@@ -369,14 +368,6 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
           {activeFiltersCount > 0 && (
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <span className="text-xs text-slate-400 font-medium">Applied:</span>
-              {searchQuery && (
-                <Badge variant="secondary" className="gap-1">
-                  Query: {searchQuery}
-                  <button onClick={() => setSearchQuery("")} aria-label="Remove search filter">
-                    <X className="w-3 h-3 ml-0.5" />
-                  </button>
-                </Badge>
-              )}
               {selectedCategory !== "all" && (
                 <Badge variant="secondary" className="gap-1">
                   Category: {categories.find((c) => c.slug === selectedCategory)?.name || selectedCategory}
