@@ -17,8 +17,8 @@ export async function verifyAdminCredentials(
   const email = emailInput.trim().toLowerCase();
   const password = passwordInput.trim();
 
-  const configuredEmail = (process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL).toLowerCase();
-  const configuredPassword = process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+  const configuredEmail = (process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL).trim().toLowerCase();
+  const configuredPassword = (process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD).trim();
 
   if (email === configuredEmail && password === configuredPassword) {
     const adminUser: AdminUser = {

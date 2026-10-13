@@ -63,6 +63,12 @@ export default function Footer() {
             >
               Refund Policy
             </Link>
+            <Link
+              href="/admin"
+              className="hover:text-indigo-600 text-slate-500 transition-colors font-medium"
+            >
+              Admin Studio
+            </Link>
           </div>
         </div>
 

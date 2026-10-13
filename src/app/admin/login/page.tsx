@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { loginAdminAction } from "@/app/actions/adminStudioActions";
@@ -11,12 +11,22 @@ import { useAdminStudio } from "@/context/AdminStudioContext";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { refreshSession } = useAdminStudio();
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from") || "/admin";
+  const { refreshSession, admin, loading } = useAdminStudio();
 
-  const [email, setEmail] = useState("testorbit@ellipse.com");
-  const [password, setPassword] = useState("tdSUi4rqJ_NN3n4");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // If already authenticated, redirect to destination or admin dashboard
+  useEffect(() => {
+    if (!loading && admin) {
+      const destination = from.startsWith("/admin") && from !== "/admin/login" ? from : "/admin";
+      router.replace(destination);
+    }
+  }, [loading, admin, router, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +42,8 @@ export default function AdminLoginPage() {
       const res = await loginAdminAction(email, password);
       if (res.success) {
         await refreshSession();
-        router.push("/admin");
+        const destination = from.startsWith("/admin") && from !== "/admin/login" ? from : "/admin";
+        router.push(destination);
       } else {
         setErrorMessage(res.error || "Authentication failed. Please verify credentials.");
       }
@@ -89,10 +100,11 @@ export default function AdminLoginPage() {
               <input
                 type="email"
                 required
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="testorbit@ellipse.com"
-                className="w-full h-10 pl-9 pr-3 text-xs bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                className="w-full h-10 pl-9 pr-3 text-xs bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
               />
             </div>
           </div>
@@ -106,10 +118,11 @@ export default function AdminLoginPage() {
               <input
                 type="password"
                 required
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full h-10 pl-9 pr-3 text-xs bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                className="w-full h-10 pl-9 pr-3 text-xs bg-white border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-slate-900"
               />
             </div>
           </div>
