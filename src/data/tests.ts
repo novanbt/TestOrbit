@@ -38,7 +38,5 @@ export {
   fetchCanonicalTestBySlug,
   saveCanonicalTest,
   deleteCanonicalTest,
-  purgeCanonicalTesterTests,
-  saveCanonicalQuestions,
   fetchCanonicalQuestionsForTest,
 } from "@/lib/data/testService";

@@ -60,15 +60,7 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
 
     const targetSlug = baseTest.slug;
 
-    // 1. Instant zero-latency hydration from local adminStore
-    import("@/lib/admin/adminStore").then(({ getAdminTestBySlug }) => {
-      const local = getAdminTestBySlug(targetSlug);
-      if (local) {
-        setTest(local);
-      }
-    });
-
-    // 2. Fetch fresh canonical test directly from Firestore
+    // Fetch fresh canonical test directly from test service if needed
     import("@/lib/data/testService").then(({ fetchCanonicalTestBySlug }) => {
       fetchCanonicalTestBySlug(targetSlug).then((fresh) => {
         if (fresh) {
@@ -76,26 +68,6 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
         }
       });
     });
-
-    // 3. Listen for live updates dispatched when admin saves or toggles tests
-    const handleUpdate = () => {
-      import("@/lib/admin/adminStore").then(({ getAdminTestBySlug }) => {
-        const local = getAdminTestBySlug(targetSlug);
-        if (local) {
-          setTest(local);
-        }
-      });
-      import("@/lib/data/testService").then(({ fetchCanonicalTestBySlug }) => {
-        fetchCanonicalTestBySlug(targetSlug).then((fresh) => {
-          if (fresh) {
-            setTest(fresh);
-          }
-        });
-      });
-    };
-
-    window.addEventListener("testorbit_admin_data_updated", handleUpdate);
-    return () => window.removeEventListener("testorbit_admin_data_updated", handleUpdate);
   }, [baseTest.slug, propTest, initialTest]);
 
   const handleShare = () => {

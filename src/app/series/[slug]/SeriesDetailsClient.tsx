@@ -241,7 +241,7 @@ export default function SeriesDetailsClient({ series }: SeriesDetailsClientProps
             )}
           </div>
 
-          {/* Missing Tests Warning (Admin Safeguard) */}
+          {/* Missing Tests Warning */}
           {missingSlugs.length > 0 && (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />

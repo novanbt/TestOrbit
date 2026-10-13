@@ -24,19 +24,6 @@ export function FeaturedTestsClient({ initialTests }: FeaturedTestsClientProps) 
         }
       });
     });
-
-    const handleUpdate = () => {
-      import("@/lib/data/testService").then(({ fetchCanonicalFeaturedTests }) => {
-        fetchCanonicalFeaturedTests().then((fresh) => {
-          if (fresh && fresh.length > 0) {
-            setTests(fresh);
-          }
-        });
-      });
-    };
-
-    window.addEventListener("testorbit_admin_data_updated", handleUpdate);
-    return () => window.removeEventListener("testorbit_admin_data_updated", handleUpdate);
   }, [initialTests]);
 
   return (

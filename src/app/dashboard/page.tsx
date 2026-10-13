@@ -39,7 +39,6 @@ import { UserBundleEnrollment, MockTest } from "@/types";
 import { getUserEnrolledBundles } from "@/lib/data/entitlementService";
 import { getCanonicalBundleById, getCanonicalBundleBySlug } from "@/lib/data/bundleService";
 import { MOCK_TESTS } from "@/data/baseTests";
-import { getAdminTests } from "@/lib/admin/adminStore";
 
 const TARGET_EXAMS = [
   "JEE Main & Advanced 2026",
@@ -467,13 +466,6 @@ export default function DashboardPage() {
                       testsMap.set(t.slug, t);
                       testsMap.set(t.id, t);
                     }
-                    try {
-                      const adminTests = getAdminTests();
-                      for (const t of adminTests) {
-                        testsMap.set(t.slug, t);
-                        testsMap.set(t.id, t);
-                      }
-                    } catch {}
 
                     const bundleTests = (enrollment.includedTestSlugs || enrollment.includedTestIds || [])
                       .map((s) => testsMap.get(s))

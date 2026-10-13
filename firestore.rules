@@ -31,53 +31,40 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     // 2. Public Marketplace Catalog (Mock Tests, Test Series & Categories)
     // -------------------------------------------------------------------------
-    // Anyone (including prospective students) can browse the catalog;
-    // Authenticated administrators can modify or delete courses/tests.
+    // Anyone can read catalog content; client writes are disabled.
     match /tests/{testId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if false;
     }
 
     match /mockTests/{testId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if false;
     }
 
     match /testSeries/{seriesId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if false;
     }
 
     match /testBundles/{bundleId} {
       allow read: if true;
-      allow write: if isAuthenticated();
-    }
-
-    match /test_series/{seriesId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if false;
     }
 
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if false;
     }
 
-    // Questions and Question Banks
     match /questions/{questionId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if false;
     }
 
     match /test_questions/{slug} {
       allow read: if true;
-      allow write: if isAuthenticated();
-    }
-
-    // Deleted Tests Tombstones (to prevent deleted mock tests from resurrecting)
-    match /deleted_tests/{testId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if false;
     }
 
     // -------------------------------------------------------------------------

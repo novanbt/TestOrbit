@@ -19,8 +19,8 @@ export default function Header() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  // Hide global marketplace header inside dedicated CBT examination test window and admin portal
-  if (pathname?.startsWith("/admin") || pathname?.endsWith("/take") || pathname?.includes("/take/")) {
+  // Hide global marketplace header inside dedicated CBT examination test window
+  if (pathname?.endsWith("/take") || pathname?.includes("/take/")) {
     return null;
   }
 

@@ -18,7 +18,7 @@ const REQUIRED_PUBLIC_VARS = [
   "NEXT_PUBLIC_FIREBASE_APP_ID",
 ];
 
-const REQUIRED_SERVER_VARS = ["ADMIN_EMAIL", "ADMIN_PASSWORD"];
+const REQUIRED_SERVER_VARS: string[] = [];
 
 export function validateEnvironment(): EnvValidationResult {
   const missing: string[] = [];

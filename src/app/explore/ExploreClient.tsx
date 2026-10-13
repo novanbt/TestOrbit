@@ -82,23 +82,6 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
         setAllSeries(freshBundles);
       }
     });
-
-    const handleUpdate = () => {
-      import("@/lib/data/testService").then(({ fetchCanonicalPublishedTests }) => {
-        fetchCanonicalPublishedTests().then((fresh) => {
-          if (fresh && fresh.length > 0) {
-            setAllTests(fresh);
-          }
-        });
-      });
-
-      import("@/lib/data/bundleService").then(({ getAllCanonicalPublishedBundles }) => {
-        setAllSeries(getAllCanonicalPublishedBundles());
-      });
-    };
-
-    window.addEventListener("testorbit_admin_data_updated", handleUpdate);
-    return () => window.removeEventListener("testorbit_admin_data_updated", handleUpdate);
   }, [initialTests]);
 
 

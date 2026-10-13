@@ -2,16 +2,13 @@ import {
   collection,
   doc,
   getDocs,
-  getDoc,
   setDoc,
   deleteDoc,
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "@/lib/firebase/client";
 import { TestBundle, MockTest, BundleIncludedTestItem } from "@/types";
 import { TEST_SERIES as BASE_BUNDLES } from "@/data/test-series";
-import { getAdminSeries, saveAdminSeries, deleteAdminSeries } from "@/lib/admin/adminStore";
 import { MOCK_TESTS } from "@/data/baseTests";
-import { getAdminTests } from "@/lib/admin/adminStore";
 
 // Canonical in-memory registry for bundles
 const canonicalBundleRegistry = new Map<string, TestBundle>();
@@ -19,7 +16,7 @@ let isInitialized = false;
 let isSyncingFirestore = false;
 
 /**
- * Initializes the in-memory registry with base bundles and local storage overrides.
+ * Initializes the in-memory registry with base bundles.
  */
 export function initBundleRegistry() {
   if (isInitialized && canonicalBundleRegistry.size > 0) return;
@@ -31,17 +28,6 @@ export function initBundleRegistry() {
     if (bundle.id && !canonicalBundleRegistry.has(bundle.id)) {
       canonicalBundleRegistry.set(bundle.id, bundle);
     }
-  }
-
-  // If in browser, merge localStorage overrides
-  if (typeof window !== "undefined") {
-    try {
-      const local = getAdminSeries();
-      for (const b of local) {
-        canonicalBundleRegistry.set(b.slug, b);
-        if (b.id) canonicalBundleRegistry.set(b.id, b);
-      }
-    } catch {}
   }
 
   isInitialized = true;
@@ -134,7 +120,7 @@ export function getCanonicalBundleById(id: string): TestBundle | undefined {
 
 /**
  * Finds all mock test objects for a given test bundle.
- * Returns the tests in the exact displayOrder configured by the admin,
+ * Returns the tests in the exact displayOrder configured,
  * plus any warnings if a test is missing or archived.
  */
 export function resolveBundleTests(bundle: TestBundle): {
@@ -147,16 +133,6 @@ export function resolveBundleTests(bundle: TestBundle): {
   for (const t of MOCK_TESTS) {
     testsMap.set(t.slug, t);
     testsMap.set(t.id, t);
-  }
-
-  if (typeof window !== "undefined") {
-    try {
-      const adminTests = getAdminTests();
-      for (const t of adminTests) {
-        testsMap.set(t.slug, t);
-        testsMap.set(t.id, t);
-      }
-    } catch {}
   }
 
   const items = bundle.includedItems && bundle.includedItems.length > 0
@@ -227,12 +203,11 @@ export function calculateBundlePricingMetrics(
 }
 
 /**
- * Persist a bundle to in-memory registry, Firestore, and client storage.
+ * Persist a bundle to in-memory registry and Firestore.
  */
 export async function saveCanonicalBundle(bundle: TestBundle): Promise<TestBundle> {
   initBundleRegistry();
 
-  // Normalize bundle fields
   const normalized: TestBundle = {
     ...bundle,
     id: bundle.id || `bundle-${Date.now().toString(36)}`,
@@ -243,24 +218,14 @@ export async function saveCanonicalBundle(bundle: TestBundle): Promise<TestBundl
     updatedAt: new Date().toISOString(),
   };
 
-  // 1. Update in-memory registry
   canonicalBundleRegistry.set(normalized.slug, normalized);
   canonicalBundleRegistry.set(normalized.id, normalized);
 
-  // 2. Client localStorage
-  if (typeof window !== "undefined") {
-    try {
-      saveAdminSeries(normalized);
-    } catch {}
-  }
-
-  // 3. Persist to Firestore if available
   if (isFirebaseConfigured && db) {
     try {
       const docRef = doc(db, "testBundles", normalized.id);
       await setDoc(docRef, normalized, { merge: true });
 
-      // Keep testSeries collection in sync for legacy listeners
       const legacyDocRef = doc(db, "testSeries", normalized.id);
       await setDoc(legacyDocRef, normalized, { merge: true });
     } catch (err) {
@@ -282,12 +247,6 @@ export async function deleteCanonicalBundle(id: string): Promise<void> {
     canonicalBundleRegistry.delete(existing.slug);
   }
   canonicalBundleRegistry.delete(id);
-
-  if (typeof window !== "undefined") {
-    try {
-      deleteAdminSeries(id);
-    } catch {}
-  }
 
   if (isFirebaseConfigured && db) {
     try {

@@ -394,18 +394,12 @@ export function TestRunner({ test, questions }: TestRunnerProps) {
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Questions Not Added Yet</h2>
+            <h2 className="text-lg font-bold text-white">Questions Not Available</h2>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              This mock test does not have any questions in its question bank yet.
-              You can manually add your own questions from the Admin Panel.
+              This mock test does not have questions published yet. Please check back soon.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            <Link href={`/admin/tests/${test.slug}/questions`} className="w-full sm:w-auto">
-              <Button variant="primary" size="sm" className="w-full text-xs">
-                Add Questions in Admin
-              </Button>
-            </Link>
+          <div className="flex items-center justify-center pt-2">
             <Link href={`/tests/${test.slug}`} className="w-full sm:w-auto">
               <Button variant="outline" size="sm" className="w-full text-xs border-slate-700 text-slate-300">
                 Back to Details

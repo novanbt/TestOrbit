@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/marketplace.test.ts tests/bundle-system.test.ts tests/admin-test-flow.test.ts",
+    "test": "tsx --test tests/marketplace.test.ts tests/bundle-system.test.ts",
     "check:secrets": "node scripts/scan-secrets.mjs"
   },
   "dependencies": {
