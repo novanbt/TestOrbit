@@ -10,7 +10,6 @@ import {
   Search,
   BookOpen,
   Layers,
-  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -149,42 +148,6 @@ export default function ExploreClient() {
             </button>
           )}
         </div>
-      </div>
-
-      {/* Quick Filter by Tags */}
-      <div className="flex flex-wrap items-center gap-1.5 -mt-3 mb-6">
-        <span className="text-xs font-semibold text-slate-500 mr-1 flex items-center gap-1">
-          <Tag className="w-3.5 h-3.5 text-indigo-500" />
-          Search by Tag:
-        </span>
-        {["Class 10", "Class 12", "CBSE", "JEE Main", "NEET", "Mathematics", "Science", "PYQ", "Board Exam"].map(
-          (tag) => {
-            const isSelected = searchQuery.toLowerCase() === tag.toLowerCase();
-            return (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => setSearchQuery(isSelected ? "" : tag)}
-                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                  isSelected
-                    ? "bg-indigo-600 text-white shadow-xs font-semibold"
-                    : "bg-white text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200"
-                }`}
-              >
-                #{tag}
-              </button>
-            );
-          }
-        )}
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => setSearchQuery("")}
-            className="text-[11px] text-slate-400 hover:text-slate-600 underline ml-2 cursor-pointer"
-          >
-            Reset
-          </button>
-        )}
       </div>
 
       {/* Main Content Layout: Sidebar + Grid */}
