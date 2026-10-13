@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { MockTest, Category } from "@/types";
 import { getAdminTests, saveAdminTest, deleteAdminTest, getAdminCategories } from "@/lib/admin/adminStore";
-import { saveTestServerAction, deleteTestServerAction } from "@/app/actions/testActions";
+import { saveTestServerAction, deleteTestServerAction, getAllTestsServerAction } from "@/app/actions/testActions";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatCurrency, formatDuration } from "@/lib/utils";
@@ -44,9 +44,21 @@ export default function AdminTestsPage() {
     }
   };
 
-  const loadData = () => {
+  const loadData = async () => {
     setTests(getAdminTests());
     setCategories(getAdminCategories());
+
+    try {
+      const res = await getAllTestsServerAction();
+      if (res.success && res.data && res.data.length > 0) {
+        for (const t of res.data) {
+          saveAdminTest(t);
+        }
+        setTests(getAdminTests());
+      }
+    } catch (err) {
+      console.warn("[AdminTests] Background server sync warning:", err);
+    }
   };
 
   useEffect(() => {

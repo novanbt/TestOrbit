@@ -21,7 +21,7 @@ import {
   getAdminCategories,
   deriveTagsForTest,
 } from "@/lib/admin/adminStore";
-import { saveTestServerAction } from "@/app/actions/testActions";
+import { saveTestServerAction, getTestBySlugServerAction } from "@/app/actions/testActions";
 import { Button } from "@/components/ui/Button";
 
 export default function EditTestPage() {
@@ -57,34 +57,47 @@ export default function EditTestPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const populateFields = (test: MockTest) => {
+    setExistingTest(test);
+    setTitle(test.title);
+    setCategoryId(test.categoryId);
+    if (test.tags && test.tags.length > 0) {
+      setTags(test.tags);
+    } else {
+      setTags(deriveTagsForTest(test));
+    }
+    setDescription(test.description);
+    setDurationMinutes(test.durationMinutes);
+    setQuestionCount(test.questionCount);
+    setMaxMarks(test.maxMarks);
+    setDifficulty(test.difficulty);
+    setLanguage(test.language || "English");
+    setPriceInRupees(Math.round((test.priceInPaise || 0) / 100));
+    setIsFree(Boolean(test.isFree));
+    setPublished(test.published);
+    setIsFeatured(Boolean(test.isFeatured));
+    setTopics(test.topics || []);
+    setExpectations(test.expectations || []);
+    setErrorMessage(null);
+  };
+
   useEffect(() => {
     const cats = getAdminCategories();
     setCategories(cats);
 
     const test = getAdminTestBySlug(slugParam);
     if (test) {
-      setExistingTest(test);
-      setTitle(test.title);
-      setCategoryId(test.categoryId);
-      if (test.tags && test.tags.length > 0) {
-        setTags(test.tags);
-      } else {
-        setTags(deriveTagsForTest(test));
-      }
-      setDescription(test.description);
-      setDurationMinutes(test.durationMinutes);
-      setQuestionCount(test.questionCount);
-      setMaxMarks(test.maxMarks);
-      setDifficulty(test.difficulty);
-      setLanguage(test.language || "English");
-      setPriceInRupees(Math.round((test.priceInPaise || 0) / 100));
-      setIsFree(Boolean(test.isFree));
-      setPublished(test.published);
-      setIsFeatured(Boolean(test.isFeatured));
-      setTopics(test.topics || []);
-      setExpectations(test.expectations || []);
+      populateFields(test);
     } else {
-      setErrorMessage(`Mock test with slug "${slugParam}" not found.`);
+      // Async fallback to server action
+      getTestBySlugServerAction(slugParam).then((res) => {
+        if (res.success && res.data) {
+          saveAdminTest(res.data);
+          populateFields(res.data);
+        } else {
+          setErrorMessage(`Mock test with slug "${slugParam}" not found.`);
+        }
+      });
     }
   }, [slugParam]);
 

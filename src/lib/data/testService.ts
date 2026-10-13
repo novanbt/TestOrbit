@@ -113,29 +113,44 @@ export async function syncFromFirestore(): Promise<void> {
  * Synchronous lookup for a single test by slug.
  * Safe for build prerendering and fast SSR.
  */
-export function getCanonicalTestBySlug(slug: string): MockTest | undefined {
+export function getCanonicalTestBySlug(slug: string, requirePublished: boolean = true): MockTest | undefined {
   initRegistry();
-  const test = canonicalRegistry.get(slug);
-  if (test && test.published) return test;
-  return MOCK_TESTS.find((t) => t.slug === slug && t.published);
+  if (!slug) return undefined;
+  const clean = slug.trim().toLowerCase();
+
+  for (const [k, test] of canonicalRegistry.entries()) {
+    if (k.toLowerCase() === clean || test.slug.toLowerCase() === clean) {
+      if (!requirePublished || test.published) return test;
+    }
+  }
+
+  return MOCK_TESTS.find((t) => t.slug.toLowerCase() === clean && (!requirePublished || t.published));
 }
 
 /**
  * Asynchronous lookup for a single test by slug, ensuring Firestore sync.
  */
-export async function fetchCanonicalTestBySlug(slug: string): Promise<MockTest | undefined> {
+export async function fetchCanonicalTestBySlug(slug: string, requirePublished: boolean = true): Promise<MockTest | undefined> {
   initRegistry();
+  if (!slug) return undefined;
+  const clean = slug.trim().toLowerCase();
 
   if (isFirebaseConfigured && db) {
     try {
-      const q = query(collection(db, "tests"), where("slug", "==", slug), limit(1));
-      const snap = await getDocs(q);
+      const q = query(collection(db, "tests"), where("slug", "==", clean), limit(1));
+      let snap = await getDocs(q);
+      if (snap.empty && clean !== slug.trim()) {
+        const qRaw = query(collection(db, "tests"), where("slug", "==", slug.trim()), limit(1));
+        snap = await getDocs(qRaw);
+      }
       if (!snap.empty) {
         const item = snap.docs[0].data() as MockTest;
-        if (item && item.published) {
+        if (item) {
           canonicalRegistry.set(item.slug, item);
           if (item.id) canonicalRegistry.set(item.id, item);
-          return item;
+          if (!requirePublished || item.published) {
+            return item;
+          }
         }
       }
     } catch (err) {
@@ -144,7 +159,7 @@ export async function fetchCanonicalTestBySlug(slug: string): Promise<MockTest |
   }
 
   await syncFromFirestore();
-  return getCanonicalTestBySlug(slug);
+  return getCanonicalTestBySlug(slug, requirePublished);
 }
 
 /**

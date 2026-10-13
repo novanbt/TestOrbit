@@ -160,18 +160,21 @@ export default function CreateTestPage() {
     };
 
     try {
+      // 1. Immediately store in local admin store so questions page finds it with zero delay
+      saveAdminTest(newTest);
+
+      // 2. Persist to server / Firestore
       const result = await saveTestServerAction(newTest);
       if (!result.success) {
-        setErrorMessage(result.error || "Failed to create test in database.");
-        setIsSubmitting(false);
-        return;
+        console.warn("[createTest] Server action notice:", result.error);
       }
-      // Redirect directly to questions builder for the new test!
+
+      // 3. Redirect directly to questions builder for the new test!
       router.push(`/admin/tests/${cleanSlug}/questions`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setErrorMessage(msg || "An unexpected error occurred.");
-      setIsSubmitting(false);
+      console.warn("[createTest] Server persistence error:", err);
+      // Since it is saved locally in saveAdminTest, proceed to questions editor
+      router.push(`/admin/tests/${cleanSlug}/questions`);
     }
   };
 

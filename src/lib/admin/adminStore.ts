@@ -72,14 +72,19 @@ export function getAdminTests(): MockTest[] {
 }
 
 export function getAdminTestBySlug(slug: string): MockTest | undefined {
+  if (!slug) return undefined;
+  const clean = slug.trim().toLowerCase();
   const tests = getAdminTests();
-  return tests.find((t) => t.slug === slug);
+  return tests.find((t) => t.slug.toLowerCase() === clean);
 }
 
 export function saveAdminTest(test: MockTest): void {
-  if (!isClient()) return;
+  if (!isClient() || !test) return;
   const tests = getAdminTests();
-  const existingIndex = tests.findIndex((t) => t.id === test.id || t.slug === test.slug);
+  const cleanSlug = test.slug.toLowerCase();
+  const existingIndex = tests.findIndex(
+    (t) => (test.id && t.id === test.id) || t.slug.toLowerCase() === cleanSlug
+  );
 
   let updated: MockTest[];
   if (existingIndex >= 0) {

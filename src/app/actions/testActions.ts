@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { MockTest } from "@/types";
-import { saveCanonicalTest, deleteCanonicalTest } from "@/lib/data/testService";
+import {
+  saveCanonicalTest,
+  deleteCanonicalTest,
+  fetchCanonicalTestBySlug,
+  fetchCanonicalTests,
+} from "@/lib/data/testService";
 
 export interface ActionResponse<T = unknown> {
   success: boolean;
@@ -84,5 +89,41 @@ export async function deleteTestServerAction(id: string, slug?: string): Promise
       success: false,
       error: message,
     };
+  }
+}
+
+/**
+ * Server action to fetch a test by slug from canonical database / Firestore.
+ * Supports both published and draft/unpublished tests for admin operations.
+ */
+export async function getTestBySlugServerAction(slug: string): Promise<ActionResponse<MockTest>> {
+  try {
+    if (!slug || !slug.trim()) {
+      return { success: false, error: "Mock test slug is required." };
+    }
+    const clean = slug.trim().toLowerCase();
+    const test = await fetchCanonicalTestBySlug(clean, false);
+    if (!test) {
+      return { success: false, error: `Mock test "${slug}" not found in database.` };
+    }
+    return { success: true, data: test };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[getTestBySlugServerAction] Error fetching test:", message);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Server action to fetch all tests (including drafts) from canonical database / Firestore.
+ */
+export async function getAllTestsServerAction(): Promise<ActionResponse<MockTest[]>> {
+  try {
+    const tests = await fetchCanonicalTests();
+    return { success: true, data: tests };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[getAllTestsServerAction] Error fetching tests:", message);
+    return { success: false, error: message };
   }
 }

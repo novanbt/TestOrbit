@@ -17,14 +17,18 @@ import {
   Sparkles,
   BookOpen,
   Award,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { MockTest, TestQuestion, QuestionOption } from "@/types";
 import {
   getAdminTestBySlug,
   getAdminTestQuestions,
+  saveAdminTest,
   saveAdminTestQuestion,
   deleteAdminTestQuestion,
 } from "@/lib/admin/adminStore";
+import { getTestBySlugServerAction, saveTestServerAction } from "@/app/actions/testActions";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 
@@ -34,6 +38,8 @@ export default function TestQuestionsManagerPage() {
 
   const [test, setTest] = useState<MockTest | null>(null);
   const [questions, setQuestions] = useState<TestQuestion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFoundError, setNotFoundError] = useState<string | null>(null);
   const [selectedTopicFilter, setSelectedTopicFilter] = useState("all");
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -55,16 +61,86 @@ export default function TestQuestionsManagerPage() {
 
   const editorRef = useRef<HTMLDivElement>(null);
 
-  const loadData = () => {
-    const t = getAdminTestBySlug(slugParam);
-    if (t) {
-      setTest(t);
-      const qList = getAdminTestQuestions(slugParam);
+  const loadData = async () => {
+    if (!slugParam) return;
+
+    // 1. Check local admin store immediately
+    const local = getAdminTestBySlug(slugParam);
+    if (local) {
+      setTest(local);
+      const qList = getAdminTestQuestions(local.slug);
       setQuestions(qList);
-      if (t.topics && t.topics.length > 0 && !topic) {
-        setTopic(t.topics[0]);
+      if (local.topics && local.topics.length > 0 && !topic) {
+        setTopic(local.topics[0]);
       }
+      setIsLoading(false);
+      setNotFoundError(null);
+      return;
     }
+
+    // 2. Fallback: Asynchronously retrieve from server / Firestore
+    setIsLoading(true);
+    try {
+      const res = await getTestBySlugServerAction(slugParam);
+      if (res.success && res.data) {
+        saveAdminTest(res.data);
+        setTest(res.data);
+        const qList = getAdminTestQuestions(res.data.slug);
+        setQuestions(qList);
+        if (res.data.topics && res.data.topics.length > 0 && !topic) {
+          setTopic(res.data.topics[0]);
+        }
+        setNotFoundError(null);
+      } else {
+        setNotFoundError(res.error || `Mock test "${slugParam}" not found in database.`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setNotFoundError(msg || "Failed to load mock test.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInitializeFromSlug = async () => {
+    setIsLoading(true);
+    const cleanTitle = slugParam
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+    const fallbackTest: MockTest = {
+      id: "test-" + Date.now().toString(36),
+      slug: slugParam.trim().toLowerCase(),
+      title: cleanTitle,
+      categoryId: "cat-competitive",
+      categoryName: "Competitive Exams",
+      tags: ["General"],
+      targetAudience: "All Students",
+      description: `Official mock examination simulator for ${cleanTitle}.`,
+      questionCount: 20,
+      durationMinutes: 60,
+      maxMarks: 100,
+      difficulty: "Intermediate",
+      language: "English",
+      priceInPaise: 0,
+      isFree: true,
+      topics: ["General Syllabus"],
+      expectations: ["Standard marking scheme", "Detailed solutions"],
+      published: true,
+      createdAt: new Date().toISOString().split("T")[0],
+    };
+
+    saveAdminTest(fallbackTest);
+    try {
+      await saveTestServerAction(fallbackTest);
+    } catch {}
+
+    setTest(fallbackTest);
+    const qList = getAdminTestQuestions(fallbackTest.slug);
+    setQuestions(qList);
+    setTopic(fallbackTest.topics[0]);
+    setNotFoundError(null);
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -177,10 +253,48 @@ export default function TestQuestionsManagerPage() {
     return true;
   });
 
-  if (!test) {
+  if (isLoading) {
     return (
-      <div className="py-12 text-center text-slate-500">
-        <p>Loading question bank for {slugParam}...</p>
+      <div className="py-24 flex flex-col items-center justify-center space-y-4 text-center">
+        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+        <div>
+          <p className="text-sm font-semibold text-slate-800">
+            Loading question bank for <span className="font-mono text-indigo-600 font-bold">{slugParam}</span>...
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Retrieving examination specifications and questions from database...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (notFoundError || !test) {
+    return (
+      <div className="py-16 max-w-lg mx-auto text-center px-4">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto mb-4 shadow-xs">
+          <AlertCircle className="w-7 h-7" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 mb-1">Mock Test Record Not Found</h2>
+        <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+          The test with identifier <code className="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-700 text-xs">{slugParam}</code> could not be located in local or cloud records.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link href="/admin/tests" className="w-full sm:w-auto">
+            <Button variant="outline" size="sm" className="w-full text-xs">
+              Back to Mock Tests
+            </Button>
+          </Link>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleInitializeFromSlug}
+            className="w-full sm:w-auto text-xs gap-1.5 shadow-xs"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Initialize Question Bank
+          </Button>
+        </div>
       </div>
     );
   }
