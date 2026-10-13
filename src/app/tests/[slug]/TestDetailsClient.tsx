@@ -275,11 +275,11 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
                 <Link href={`/tests/${test.slug}/take`} className="block">
                   <Button
                     variant="primary"
-                    size="lg"
-                    className="w-full font-semibold gap-2 shadow-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                    size="md"
+                    className="w-full h-11 px-3 text-xs sm:text-sm font-semibold gap-2 whitespace-nowrap shadow-xs bg-indigo-600 hover:bg-indigo-700 text-white"
                   >
-                    <BookOpen className="w-4 h-4" />
-                    {test.isFree ? "Start Free Practice Mock" : "Start Mock Examination"}
+                    <BookOpen className="w-4 h-4 flex-shrink-0" />
+                    <span>{test.isFree ? "Start Free Mock" : "Start Mock Test"}</span>
                   </Button>
                 </Link>
               ) : (
@@ -290,11 +290,11 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
                   >
                     <Button
                       variant="primary"
-                      size="lg"
-                      className="w-full font-semibold gap-2 shadow-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                      size="md"
+                      className="w-full h-11 px-3 text-xs sm:text-sm font-semibold gap-2 whitespace-nowrap shadow-xs bg-indigo-600 hover:bg-indigo-700 text-white"
                     >
-                      <BookOpen className="w-4 h-4" />
-                      Create Account to Start Mock
+                      <BookOpen className="w-4 h-4 flex-shrink-0" />
+                      <span>Sign Up & Start Mock</span>
                     </Button>
                   </Link>
                   <p className="text-[11px] text-center text-slate-500">
