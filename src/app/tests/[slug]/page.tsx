@@ -39,6 +39,5 @@ export default async function TestDetailsPage({ params }: PageProps) {
     notFound();
   }
 
-  return <TestDetailsClient test={test} />;
+  return <TestDetailsClient initialTest={test} />;
 }
-

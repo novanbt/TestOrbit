@@ -5,6 +5,9 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
+  query,
+  where,
+  limit,
 } from "firebase/firestore";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { db, auth, isFirebaseConfigured } from "@/lib/firebase/client";
@@ -117,6 +120,24 @@ export function getCanonicalTestBySlug(slug: string): MockTest | undefined {
  */
 export async function fetchCanonicalTestBySlug(slug: string): Promise<MockTest | undefined> {
   initRegistry();
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const q = query(collection(db, "tests"), where("slug", "==", slug), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const item = snap.docs[0].data() as MockTest;
+        if (item && item.published) {
+          canonicalRegistry.set(item.slug, item);
+          if (item.id) canonicalRegistry.set(item.id, item);
+          return item;
+        }
+      }
+    } catch (err) {
+      console.warn(`[testService] Direct Firestore fetch for slug "${slug}" notice:`, err);
+    }
+  }
+
   await syncFromFirestore();
   return getCanonicalTestBySlug(slug);
 }

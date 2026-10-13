@@ -169,6 +169,7 @@ export default function EditTestPage() {
     };
 
     try {
+      saveAdminTest(updatedTest);
       const result = await saveTestServerAction(updatedTest);
       if (!result.success) {
         setErrorMessage(result.error || "Failed to update mock test in database.");

@@ -44,4 +44,3 @@ export default async function TakeTestPage({ params }: PageProps) {
 
   return <TestRunner test={test} questions={questions} />;
 }
-

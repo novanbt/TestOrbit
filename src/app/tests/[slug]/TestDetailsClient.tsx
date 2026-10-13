@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Clock,
@@ -22,12 +22,60 @@ import { EnrollmentModal } from "@/components/ui/EnrollmentModal";
 import { formatPriceInRupees, formatDuration } from "@/lib/utils";
 
 interface TestDetailsClientProps {
-  test: MockTest;
+  test?: MockTest;
+  initialTest?: MockTest;
 }
 
-export default function TestDetailsClient({ test }: TestDetailsClientProps) {
+export default function TestDetailsClient({ test: propTest, initialTest }: TestDetailsClientProps) {
+  const baseTest = propTest || initialTest!;
+  const [test, setTest] = useState<MockTest>(baseTest);
   const [modalOpen, setModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (propTest || initialTest) {
+      setTest(propTest || initialTest!);
+    }
+
+    const targetSlug = baseTest.slug;
+
+    // 1. Instant zero-latency hydration from local adminStore
+    import("@/lib/admin/adminStore").then(({ getAdminTestBySlug }) => {
+      const local = getAdminTestBySlug(targetSlug);
+      if (local) {
+        setTest(local);
+      }
+    });
+
+    // 2. Fetch fresh canonical test directly from Firestore
+    import("@/lib/data/testService").then(({ fetchCanonicalTestBySlug }) => {
+      fetchCanonicalTestBySlug(targetSlug).then((fresh) => {
+        if (fresh) {
+          setTest(fresh);
+        }
+      });
+    });
+
+    // 3. Listen for live updates dispatched when admin saves or toggles tests
+    const handleUpdate = () => {
+      import("@/lib/admin/adminStore").then(({ getAdminTestBySlug }) => {
+        const local = getAdminTestBySlug(targetSlug);
+        if (local) {
+          setTest(local);
+        }
+      });
+      import("@/lib/data/testService").then(({ fetchCanonicalTestBySlug }) => {
+        fetchCanonicalTestBySlug(targetSlug).then((fresh) => {
+          if (fresh) {
+            setTest(fresh);
+          }
+        });
+      });
+    };
+
+    window.addEventListener("testorbit_admin_data_updated", handleUpdate);
+    return () => window.removeEventListener("testorbit_admin_data_updated", handleUpdate);
+  }, [baseTest.slug, propTest, initialTest]);
 
   const handleShare = () => {
     if (typeof window !== "undefined") {
