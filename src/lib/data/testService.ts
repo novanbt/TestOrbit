@@ -10,7 +10,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { db, auth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { MockTest } from "@/types";
 import { MOCK_TESTS, FEATURED_TEST_SLUGS } from "@/data/baseTests";
-import { ADMIN_CREDENTIALS } from "@/context/AdminAuthContext";
+import { ADMIN_CREDENTIALS } from "@/lib/constants/adminCredentials";
 import { saveAdminTest, deleteAdminTest, getAdminTests } from "@/lib/admin/adminStore";
 
 // Canonical in-memory registry on the server and client

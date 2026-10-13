@@ -11,10 +11,10 @@ interface AdminAuthContextType {
   logoutAdmin: () => void;
 }
 
-export const ADMIN_CREDENTIALS = {
-  email: "testorbit@ellipse.com",
-  password: "tdSUi4rqJ_NN3n4",
-};
+import { ADMIN_CREDENTIALS } from "@/lib/constants/adminCredentials";
+
+export { ADMIN_CREDENTIALS };
+
 
 const ADMIN_STORAGE_KEY = "testorbit_admin_auth_token";
 
