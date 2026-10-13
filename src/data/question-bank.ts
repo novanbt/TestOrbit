@@ -692,46 +692,9 @@ export function getQuestionsForTest(test: MockTest): TestQuestion[] {
     return curated;
   }
 
-  // Determine question count: use realistic count (capped at 15-25 for seamless CBT runner speed)
-  const targetCount = Math.min(Math.max(test.questionCount, 10), 20);
-  const markPerQ = Math.max(Math.round(test.maxMarks / test.questionCount), 1);
-  const negMark = test.difficulty === "Advanced" ? Math.round(markPerQ * 0.25 * 10) / 10 : 0.5;
-
-  const topics = test.topics && test.topics.length > 0
-    ? test.topics
-    : [
-        "Core Foundations & Key Definitions",
-        "Analytical Problem Solving",
-        "Applied Concepts & Case Analysis",
-        "Standards & Best Practices",
-        "Evaluation & Synthesis",
-      ];
-
-  const generatedQuestions: TestQuestion[] = [];
-
-  for (let i = 0; i < targetCount; i++) {
-    const topic = topics[i % topics.length];
-    const qNum = i + 1;
-    const correctLetter: "A" | "B" | "C" | "D" = (["A", "B", "C", "D"] as const)[i % 4];
-
-    // Build realistic questions according to the test's domain & topic
-    const qData = generateDomainQuestion(test, topic, qNum, correctLetter);
-
-    generatedQuestions.push({
-      id: `${test.slug}-q-${qNum}`,
-      questionNumber: qNum,
-      text: qData.text,
-      codeSnippet: qData.codeSnippet,
-      options: qData.options,
-      correctOptionId: correctLetter,
-      marks: markPerQ,
-      negativeMarks: negMark,
-      topic: topic,
-      explanation: qData.explanation,
-    });
-  }
-
-  return generatedQuestions;
+  // DO NOT automatically generate questions!
+  // Return empty array so users can add their own questions manually.
+  return [];
 }
 
 interface GeneratedQData {

@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   SERIES: "testorbit_admin_series",
   CATEGORIES: "testorbit_admin_categories",
   QUESTIONS_PREFIX: "testorbit_admin_questions_",
+  DELETED_TESTS: "testorbit_admin_deleted_tests",
 };
 
 function isClient(): boolean {
@@ -19,6 +20,47 @@ function dispatchUpdateEvent() {
   if (isClient()) {
     window.dispatchEvent(new Event("testorbit_admin_data_updated"));
   }
+}
+
+/**
+ * -------------------------------------------------------------
+ * 0. DELETED TESTS TRACKER (TOMBSTONES)
+ * -------------------------------------------------------------
+ * Ensures deleted mock tests stay deleted across all reloads,
+ * background syncs, and resets.
+ */
+export function getAdminDeletedTestIds(): Set<string> {
+  if (!isClient()) return new Set();
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS.DELETED_TESTS);
+    if (saved) {
+      const arr = JSON.parse(saved);
+      if (Array.isArray(arr)) {
+        return new Set(arr);
+      }
+    }
+  } catch {}
+  return new Set();
+}
+
+export function markTestAsDeleted(id: string, slug?: string): void {
+  if (!isClient()) return;
+  try {
+    const set = getAdminDeletedTestIds();
+    set.add(id);
+    if (slug) set.add(slug);
+    localStorage.setItem(STORAGE_KEYS.DELETED_TESTS, JSON.stringify(Array.from(set)));
+  } catch {}
+}
+
+export function unmarkTestAsDeleted(id: string, slug?: string): void {
+  if (!isClient()) return;
+  try {
+    const set = getAdminDeletedTestIds();
+    set.delete(id);
+    if (slug) set.delete(slug);
+    localStorage.setItem(STORAGE_KEYS.DELETED_TESTS, JSON.stringify(Array.from(set)));
+  } catch {}
 }
 
 /**
@@ -57,6 +99,8 @@ export function deriveTagsForTest(test: {
  */
 export function getAdminTests(): MockTest[] {
   let list: MockTest[] = MOCK_TESTS;
+  const deleted = getAdminDeletedTestIds();
+
   if (isClient()) {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.TESTS);
@@ -65,6 +109,10 @@ export function getAdminTests(): MockTest[] {
       }
     } catch {}
   }
+
+  // Exclude all deleted tests permanently
+  list = list.filter((t) => !deleted.has(t.id) && !deleted.has(t.slug));
+
   return list.map((t) => ({
     ...t,
     tags: t.tags && t.tags.length > 0 ? t.tags : deriveTagsForTest(t),
@@ -78,8 +126,10 @@ export function getAdminTestBySlug(slug: string): MockTest | undefined {
   return tests.find((t) => t.slug.toLowerCase() === clean);
 }
 
-export function saveAdminTest(test: MockTest): void {
+export function saveAdminTest(test: MockTest, triggerEvent = true): void {
   if (!isClient() || !test) return;
+  unmarkTestAsDeleted(test.id, test.slug);
+
   const tests = getAdminTests();
   const cleanSlug = test.slug.toLowerCase();
   const existingIndex = tests.findIndex(
@@ -96,22 +146,49 @@ export function saveAdminTest(test: MockTest): void {
 
   try {
     localStorage.setItem(STORAGE_KEYS.TESTS, JSON.stringify(updated));
-    dispatchUpdateEvent();
+    if (triggerEvent) {
+      dispatchUpdateEvent();
+    }
   } catch (err) {
     console.error("Failed to save test:", err);
   }
 }
 
-export function deleteAdminTest(id: string): void {
+export function deleteAdminTest(id: string, slug?: string): void {
   if (!isClient()) return;
+  markTestAsDeleted(id, slug);
+
   const tests = getAdminTests();
-  const updated = tests.filter((t) => t.id !== id);
+  const updated = tests.filter((t) => t.id !== id && (!slug || t.slug !== slug));
   try {
     localStorage.setItem(STORAGE_KEYS.TESTS, JSON.stringify(updated));
+    if (slug) {
+      localStorage.removeItem(STORAGE_KEYS.QUESTIONS_PREFIX + slug);
+    }
     dispatchUpdateEvent();
   } catch (err) {
     console.error("Failed to delete test:", err);
   }
+}
+
+/**
+ * Purges all pre-loaded seed/tester mock tests while preserving user-created tests.
+ */
+export function purgeAllTesterTests(): void {
+  if (!isClient()) return;
+  const set = getAdminDeletedTestIds();
+  for (const t of MOCK_TESTS) {
+    set.add(t.id);
+    set.add(t.slug);
+    localStorage.removeItem(STORAGE_KEYS.QUESTIONS_PREFIX + t.slug);
+  }
+  localStorage.setItem(STORAGE_KEYS.DELETED_TESTS, JSON.stringify(Array.from(set)));
+
+  const current = getAdminTests();
+  const baseSlugs = new Set(MOCK_TESTS.map((t) => t.slug));
+  const remaining = current.filter((t) => !baseSlugs.has(t.slug));
+  localStorage.setItem(STORAGE_KEYS.TESTS, JSON.stringify(remaining));
+  dispatchUpdateEvent();
 }
 
 /**
@@ -120,30 +197,48 @@ export function deleteAdminTest(id: string): void {
  * -------------------------------------------------------------
  */
 export function getAdminTestQuestions(testSlug: string): TestQuestion[] {
-  if (!isClient()) {
-    return CURATED_QUESTION_BANK[testSlug] || [];
+  if (!testSlug) return [];
+
+  if (isClient()) {
+    try {
+      const key = STORAGE_KEYS.QUESTIONS_PREFIX + testSlug;
+      const saved = localStorage.getItem(key);
+      if (saved !== null) {
+        return JSON.parse(saved);
+      }
+    } catch {}
   }
 
-  try {
-    const key = STORAGE_KEYS.QUESTIONS_PREFIX + testSlug;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch {}
-
-  // Fallback to static question bank
+  // Fallback to static curated question bank only for pre-loaded starter tests
   const staticQuestions = CURATED_QUESTION_BANK[testSlug];
   if (staticQuestions && staticQuestions.length > 0) {
     return staticQuestions;
   }
 
-  // Fallback to generator
-  const test = getAdminTestBySlug(testSlug);
-  if (test) {
-    return getQuestionsForTest(test);
-  }
+  // NEVER automatically generate fake domain questions for newly created or custom tests!
+  // Return an empty array so users can add their own questions manually from scratch.
   return [];
+}
+
+export function clearAdminTestQuestions(testSlug: string): void {
+  if (!isClient() || !testSlug) return;
+  try {
+    const key = STORAGE_KEYS.QUESTIONS_PREFIX + testSlug;
+    localStorage.setItem(key, JSON.stringify([]));
+
+    // Also update questionCount in test metadata to 0
+    const test = getAdminTestBySlug(testSlug);
+    if (test) {
+      saveAdminTest({
+        ...test,
+        questionCount: 0,
+      });
+    }
+
+    dispatchUpdateEvent();
+  } catch (err) {
+    console.error("Failed to clear questions:", err);
+  }
 }
 
 export function saveAdminTestQuestion(testSlug: string, question: TestQuestion): void {

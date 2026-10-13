@@ -1,19 +1,19 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { getAllTests, getCanonicalTestBySlug, fetchCanonicalTestBySlug } from "@/data/tests";
-import { getQuestionsForTest } from "@/data/question-bank";
+import { connection } from "next/server";
+import { MockTest } from "@/types";
+import {
+  getCanonicalTestBySlug,
+  fetchCanonicalTestBySlug,
+  fetchCanonicalQuestionsForTest,
+} from "@/data/tests";
 import { TestRunner } from "@/components/test-runner/TestRunner";
+
+export const instant = false;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-}
-
-export async function generateStaticParams() {
-  const tests = getAllTests();
-  return tests.map((t) => ({
-    slug: t.slug,
-  }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -35,7 +35,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+async function ExamLoader({ slug, test }: { slug: string; test: MockTest }) {
+  const questions = await fetchCanonicalQuestionsForTest(slug, test);
+  return <TestRunner test={test} questions={questions} />;
+}
+
 export default async function TakeTestPage({ params }: PageProps) {
+  await connection();
   const { slug } = await params;
   let test = getCanonicalTestBySlug(slug);
   if (!test) {
@@ -46,7 +52,16 @@ export default async function TakeTestPage({ params }: PageProps) {
     notFound();
   }
 
-  const questions = getQuestionsForTest(test);
-
-  return <TestRunner test={test} questions={questions} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
+          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-xs text-slate-400">Loading examination environment...</p>
+        </div>
+      }
+    >
+      <ExamLoader slug={slug} test={test} />
+    </Suspense>
+  );
 }

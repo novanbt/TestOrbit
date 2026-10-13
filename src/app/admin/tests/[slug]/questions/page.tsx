@@ -27,8 +27,14 @@ import {
   saveAdminTest,
   saveAdminTestQuestion,
   deleteAdminTestQuestion,
+  clearAdminTestQuestions,
 } from "@/lib/admin/adminStore";
-import { getTestBySlugServerAction, saveTestServerAction } from "@/app/actions/testActions";
+import {
+  getTestBySlugServerAction,
+  saveTestServerAction,
+  saveQuestionsServerAction,
+  getQuestionsServerAction,
+} from "@/app/actions/testActions";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 
@@ -75,6 +81,15 @@ export default function TestQuestionsManagerPage() {
       }
       setIsLoading(false);
       setNotFoundError(null);
+
+      // Background sync with server questions
+      try {
+        const serverQ = await getQuestionsServerAction(slugParam);
+        if (serverQ.success && serverQ.data && serverQ.data.length > 0) {
+          localStorage.setItem("testorbit_admin_questions_" + slugParam, JSON.stringify(serverQ.data));
+          setQuestions(serverQ.data);
+        }
+      } catch {}
       return;
     }
 
@@ -91,6 +106,12 @@ export default function TestQuestionsManagerPage() {
           setTopic(res.data.topics[0]);
         }
         setNotFoundError(null);
+
+        const serverQ = await getQuestionsServerAction(slugParam);
+        if (serverQ.success && serverQ.data && serverQ.data.length > 0) {
+          localStorage.setItem("testorbit_admin_questions_" + slugParam, JSON.stringify(serverQ.data));
+          setQuestions(serverQ.data);
+        }
       } else {
         setNotFoundError(res.error || `Mock test "${slugParam}" not found in database.`);
       }
@@ -233,6 +254,12 @@ export default function TestQuestionsManagerPage() {
     };
 
     saveAdminTestQuestion(slugParam, newQuestion);
+    const updatedList = getAdminTestQuestions(slugParam);
+    setQuestions(updatedList);
+    saveQuestionsServerAction(slugParam, updatedList).catch((err) => {
+      console.warn("[Questions] Background server save warning:", err);
+    });
+
     setSuccessMessage(editingQuestionId ? "Question updated successfully!" : "New question added to bank!");
     setTimeout(() => setSuccessMessage(null), 3000);
 
@@ -241,9 +268,30 @@ export default function TestQuestionsManagerPage() {
 
   const handleDelete = (questionId: string) => {
     deleteAdminTestQuestion(slugParam, questionId);
+    const updatedList = getAdminTestQuestions(slugParam);
+    setQuestions(updatedList);
+    saveQuestionsServerAction(slugParam, updatedList).catch((err) => {
+      console.warn("[Questions] Background server delete warning:", err);
+    });
+
     setDeleteConfirmId(null);
     setSuccessMessage("Question removed from bank.");
     setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  const handleClearAllQuestions = async () => {
+    if (!test) return;
+    if (
+      window.confirm(
+        `Are you sure you want to delete all ${questions.length} questions from "${test.title}"? This will leave the question bank completely empty so you can add your own manual questions.`
+      )
+    ) {
+      clearAdminTestQuestions(slugParam);
+      setQuestions([]);
+      await saveQuestionsServerAction(slugParam, []);
+      setSuccessMessage("All questions cleared! The test now has 0 questions ready for your manual inputs.");
+      setTimeout(() => setSuccessMessage(null), 4000);
+    }
   };
 
   const filteredQuestions = questions.filter((q) => {
@@ -324,7 +372,20 @@ export default function TestQuestionsManagerPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {questions.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearAllQuestions}
+              className="gap-1.5 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 shadow-2xs"
+              title="Delete all questions from this test"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Clear All Questions
+            </Button>
+          )}
+
           <Link href={`/tests/${slugParam}/take`} target="_blank">
             <Button variant="outline" size="sm" className="gap-1.5 text-xs">
               <Eye className="w-3.5 h-3.5" />

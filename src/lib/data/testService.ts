@@ -11,13 +11,21 @@ import {
 } from "firebase/firestore";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { db, auth, isFirebaseConfigured } from "@/lib/firebase/client";
-import { MockTest } from "@/types";
+import { MockTest, TestQuestion } from "@/types";
 import { MOCK_TESTS, FEATURED_TEST_SLUGS } from "@/data/baseTests";
+import { CURATED_QUESTION_BANK } from "@/data/question-bank";
 import { ADMIN_CREDENTIALS } from "@/lib/constants/adminCredentials";
-import { saveAdminTest, deleteAdminTest, getAdminTests } from "@/lib/admin/adminStore";
+import {
+  saveAdminTest,
+  deleteAdminTest,
+  getAdminTests,
+  getAdminDeletedTestIds,
+} from "@/lib/admin/adminStore";
 
 // Canonical in-memory registry on the server and client
 const canonicalRegistry = new Map<string, MockTest>();
+const deletedRegistry = new Set<string>();
+const questionsRegistry = new Map<string, TestQuestion[]>();
 let isInitialized = false;
 let isSyncingFirestore = false;
 
@@ -27,7 +35,21 @@ let isSyncingFirestore = false;
 export function initRegistry() {
   if (isInitialized && canonicalRegistry.size > 0) return;
 
+  // 1. If in browser, merge localStorage deleted tests first
+  if (typeof window !== "undefined") {
+    try {
+      const deleted = getAdminDeletedTestIds();
+      for (const d of deleted) {
+        deletedRegistry.add(d);
+      }
+    } catch {}
+  }
+
+  // 2. Add base mock tests that haven't been deleted
   for (const test of MOCK_TESTS) {
+    if (deletedRegistry.has(test.id) || deletedRegistry.has(test.slug)) {
+      continue;
+    }
     if (!canonicalRegistry.has(test.slug)) {
       canonicalRegistry.set(test.slug, test);
     }
@@ -36,22 +58,21 @@ export function initRegistry() {
     }
   }
 
-  // If in browser, merge localStorage overrides
+  // 3. If in browser, merge local adminStore overrides
   if (typeof window !== "undefined") {
     try {
       const local = getAdminTests();
       for (const t of local) {
-        canonicalRegistry.set(t.slug, t);
-        if (t.id) canonicalRegistry.set(t.id, t);
+        if (!deletedRegistry.has(t.id) && !deletedRegistry.has(t.slug)) {
+          canonicalRegistry.set(t.slug, t);
+          if (t.id) canonicalRegistry.set(t.id, t);
+        }
       }
     } catch {}
   }
 
   isInitialized = true;
 }
-
-
-let adminAuthPromise: Promise<unknown> | null = null;
 
 /**
  * Ensures administrator is signed in to Firebase Auth.
@@ -81,7 +102,6 @@ export async function ensureAdminAuth() {
   }
 }
 
-
 /**
  * Asynchronously syncs documents from Firestore into the canonical registry.
  */
@@ -90,17 +110,53 @@ export async function syncFromFirestore(): Promise<void> {
   isSyncingFirestore = true;
 
   try {
+    // 1. Fetch tombstones from deleted_tests so deleted tests are NEVER resurrected
+    try {
+      const delSnap = await getDocs(collection(db, "deleted_tests"));
+      if (!delSnap.empty) {
+        delSnap.forEach((d) => {
+          const data = d.data();
+          const id = d.id;
+          const slug = data.slug || d.id;
+          deletedRegistry.add(id);
+          deletedRegistry.add(slug);
+          canonicalRegistry.delete(id);
+          canonicalRegistry.delete(slug);
+        });
+      }
+    } catch (delErr) {
+      console.warn("[testService] Error fetching deleted_tests:", delErr);
+    }
+
+    // 2. Fetch tests from tests collection
     const testsCol = collection(db, "tests");
     const snap = await getDocs(testsCol);
     if (!snap.empty) {
       snap.forEach((d) => {
         const item = d.data() as MockTest;
         if (item && item.slug) {
+          if (deletedRegistry.has(item.id) || deletedRegistry.has(item.slug)) {
+            return;
+          }
           canonicalRegistry.set(item.slug, item);
           if (item.id) canonicalRegistry.set(item.id, item);
         }
       });
-      console.log(`[testService] Synced ${snap.size} tests from Firestore into canonical registry.`);
+    }
+
+    // 3. Fetch questions from test_questions collection
+    try {
+      const qSnap = await getDocs(collection(db, "test_questions"));
+      if (!qSnap.empty) {
+        qSnap.forEach((d) => {
+          const data = d.data() as { questions?: TestQuestion[] };
+          if (data && Array.isArray(data.questions)) {
+            questionsRegistry.set(d.id, data.questions);
+          }
+        });
+      }
+    } catch (qErr) {
+      console.warn("[testService] Error fetching test_questions:", qErr);
     }
   } catch (err) {
     console.warn("[testService] Background Firestore sync notice:", err);
@@ -118,13 +174,24 @@ export function getCanonicalTestBySlug(slug: string, requirePublished: boolean =
   if (!slug) return undefined;
   const clean = slug.trim().toLowerCase();
 
+  if (deletedRegistry.has(clean)) {
+    return undefined;
+  }
+
   for (const [k, test] of canonicalRegistry.entries()) {
     if (k.toLowerCase() === clean || test.slug.toLowerCase() === clean) {
+      if (deletedRegistry.has(test.id) || deletedRegistry.has(test.slug)) {
+        return undefined;
+      }
       if (!requirePublished || test.published) return test;
     }
   }
 
-  return MOCK_TESTS.find((t) => t.slug.toLowerCase() === clean && (!requirePublished || t.published));
+  const base = MOCK_TESTS.find((t) => t.slug.toLowerCase() === clean && (!requirePublished || t.published));
+  if (base && !deletedRegistry.has(base.id) && !deletedRegistry.has(base.slug)) {
+    return base;
+  }
+  return undefined;
 }
 
 /**
@@ -134,6 +201,10 @@ export async function fetchCanonicalTestBySlug(slug: string, requirePublished: b
   initRegistry();
   if (!slug) return undefined;
   const clean = slug.trim().toLowerCase();
+
+  if (deletedRegistry.has(clean)) {
+    return undefined;
+  }
 
   if (isFirebaseConfigured && db) {
     try {
@@ -146,6 +217,9 @@ export async function fetchCanonicalTestBySlug(slug: string, requirePublished: b
       if (!snap.empty) {
         const item = snap.docs[0].data() as MockTest;
         if (item) {
+          if (deletedRegistry.has(item.id) || deletedRegistry.has(item.slug)) {
+            return undefined;
+          }
           canonicalRegistry.set(item.slug, item);
           if (item.id) canonicalRegistry.set(item.id, item);
           if (!requirePublished || item.published) {
@@ -171,13 +245,18 @@ export function getAllCanonicalPublishedTests(): MockTest[] {
   const result: MockTest[] = [];
 
   for (const test of canonicalRegistry.values()) {
-    if (test.published && !seenSlugs.has(test.slug)) {
+    if (
+      test.published &&
+      !seenSlugs.has(test.slug) &&
+      !deletedRegistry.has(test.id) &&
+      !deletedRegistry.has(test.slug)
+    ) {
       seenSlugs.add(test.slug);
       result.push(test);
     }
   }
 
-  return result.length > 0 ? result : MOCK_TESTS.filter((t) => t.published);
+  return result;
 }
 
 /**
@@ -189,14 +268,17 @@ export async function fetchCanonicalTests(): Promise<MockTest[]> {
   const seenSlugs = new Set<string>();
   const result: MockTest[] = [];
   for (const test of canonicalRegistry.values()) {
-    if (!seenSlugs.has(test.slug)) {
+    if (
+      !seenSlugs.has(test.slug) &&
+      !deletedRegistry.has(test.id) &&
+      !deletedRegistry.has(test.slug)
+    ) {
       seenSlugs.add(test.slug);
       result.push(test);
     }
   }
-  return result.length > 0 ? result : MOCK_TESTS;
+  return result;
 }
-
 
 /**
  * Asynchronous getter for all published tests with Firestore sync.
@@ -246,6 +328,10 @@ export async function saveCanonicalTest(test: MockTest): Promise<MockTest> {
     test.id = "test-" + Date.now().toString(36) + "-" + Math.random().toString(36).substring(2, 6);
   }
 
+  // Remove from deleted registry if re-creating
+  deletedRegistry.delete(test.id);
+  deletedRegistry.delete(test.slug);
+
   const payload: MockTest = {
     ...test,
     updatedAt: new Date().toISOString(),
@@ -261,17 +347,18 @@ export async function saveCanonicalTest(test: MockTest): Promise<MockTest> {
       await ensureAdminAuth();
       const docRef = doc(db, "tests", payload.id);
       await setDoc(docRef, payload);
+
+      // Delete from deleted_tests if it was previously there
+      await deleteDoc(doc(db, "deleted_tests", payload.id)).catch(() => {});
       console.log(`[testService] Successfully persisted test "${payload.title}" (${payload.id}) to Firestore.`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn("[testService] Firestore write warning:", msg);
 
-      // Still update local storage
       if (typeof window !== "undefined") {
         saveAdminTest(payload);
       }
 
-      // Check if it's permission error so user gets a helpful error message
       if (msg.includes("permission-denied") || msg.includes("PERMISSION_DENIED")) {
         throw new Error(
           "Firestore write denied by security rules. Please update firestore.rules in Firebase Console to allow authenticated writes to /tests."
@@ -292,27 +379,208 @@ export async function saveCanonicalTest(test: MockTest): Promise<MockTest> {
 /**
  * Deletes a test from canonical registry, Firestore, and localStorage.
  */
-export async function deleteCanonicalTest(id: string): Promise<void> {
+export async function deleteCanonicalTest(id: string, slug?: string): Promise<void> {
   initRegistry();
 
-  const existing = canonicalRegistry.get(id);
-  if (existing) {
-    canonicalRegistry.delete(existing.slug);
-    canonicalRegistry.delete(id);
+  deletedRegistry.add(id);
+  if (slug) deletedRegistry.add(slug);
+
+  let target = canonicalRegistry.get(id) || (slug ? canonicalRegistry.get(slug) : undefined);
+  if (!target) {
+    for (const t of canonicalRegistry.values()) {
+      if (t.id === id || t.slug === id || (slug && t.slug === slug)) {
+        target = t;
+        break;
+      }
+    }
   }
 
+  const effectiveId = target?.id || id;
+  const effectiveSlug = target?.slug || slug || id;
+
+  deletedRegistry.add(effectiveId);
+  deletedRegistry.add(effectiveSlug);
+  canonicalRegistry.delete(effectiveId);
+  canonicalRegistry.delete(effectiveSlug);
+  questionsRegistry.delete(effectiveSlug);
+
+  // Firestore persistence
   if (isFirebaseConfigured && db) {
     try {
       await ensureAdminAuth();
-      const docRef = doc(db, "tests", id);
+      // 1. Delete test document
+      const docRef = doc(db, "tests", effectiveId);
       await deleteDoc(docRef);
-      console.log(`[testService] Successfully deleted test (${id}) from Firestore.`);
+
+      // 2. Write tombstone to deleted_tests collection
+      const delRef = doc(db, "deleted_tests", effectiveId);
+      await setDoc(delRef, {
+        id: effectiveId,
+        slug: effectiveSlug,
+        deletedAt: new Date().toISOString(),
+      });
+
+      // 3. Delete questions document if exists
+      const qRef = doc(db, "test_questions", effectiveSlug);
+      await deleteDoc(qRef).catch(() => {});
+
+      console.log(`[testService] Successfully deleted test (${effectiveId}) and recorded tombstone in Firestore.`);
     } catch (err) {
       console.warn("[testService] Firestore delete warning:", err);
     }
   }
 
   if (typeof window !== "undefined") {
-    deleteAdminTest(id);
+    deleteAdminTest(effectiveId, effectiveSlug);
+  }
+}
+
+/**
+ * Purges all 117 pre-loaded seed/tester tests so only user-created tests remain.
+ */
+export async function purgeCanonicalTesterTests(): Promise<{ purgedCount: number }> {
+  initRegistry();
+  let purgedCount = 0;
+
+  for (const test of MOCK_TESTS) {
+    deletedRegistry.add(test.id);
+    deletedRegistry.add(test.slug);
+    canonicalRegistry.delete(test.id);
+    canonicalRegistry.delete(test.slug);
+    questionsRegistry.delete(test.slug);
+    purgedCount++;
+  }
+
+  if (isFirebaseConfigured && db) {
+    try {
+      await ensureAdminAuth();
+      for (const test of MOCK_TESTS) {
+        await deleteDoc(doc(db, "tests", test.id)).catch(() => {});
+        await setDoc(doc(db, "deleted_tests", test.id), {
+          id: test.id,
+          slug: test.slug,
+          deletedAt: new Date().toISOString(),
+        }).catch(() => {});
+        await deleteDoc(doc(db, "test_questions", test.slug)).catch(() => {});
+      }
+    } catch (err) {
+      console.warn("[testService] Purge Firestore warning:", err);
+    }
+  }
+
+  return { purgedCount };
+}
+
+/**
+ * -------------------------------------------------------------
+ * 4. QUESTION BANK PERSISTENCE
+ * -------------------------------------------------------------
+ */
+
+/**
+ * Persists questions for a mock test to canonical in-memory registry and Firestore.
+ */
+export async function saveCanonicalQuestions(
+  slug: string,
+  questions: TestQuestion[]
+): Promise<TestQuestion[]> {
+  initRegistry();
+  const cleanSlug = slug.trim().toLowerCase();
+  questionsRegistry.set(cleanSlug, questions);
+
+  // Update questionCount on test if found
+  const test = canonicalRegistry.get(cleanSlug);
+  if (test) {
+    test.questionCount = questions.length;
+    canonicalRegistry.set(test.slug, test);
+    if (test.id) canonicalRegistry.set(test.id, test);
+  }
+
+  if (isFirebaseConfigured && db) {
+    try {
+      await ensureAdminAuth();
+      const docRef = doc(db, "test_questions", cleanSlug);
+      await setDoc(docRef, {
+        slug: cleanSlug,
+        questions,
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Update questionCount in tests document
+      if (test && test.id) {
+        await setDoc(
+          doc(db, "tests", test.id),
+          { ...test, questionCount: questions.length },
+          { merge: true }
+        );
+      }
+    } catch (err) {
+      console.warn("[testService] Failed to persist questions to Firestore:", err);
+    }
+  }
+
+  return questions;
+}
+
+/**
+ * Fetches questions for a mock test.
+ * Checks questionsRegistry -> Firestore -> Curated bank for starter tests.
+ * NEVER generates synthetic questions for user tests.
+ */
+export async function fetchCanonicalQuestionsForTest(
+  slug: string,
+  test?: MockTest
+): Promise<TestQuestion[]> {
+  initRegistry();
+  if (!slug) return [];
+  const cleanSlug = slug.trim().toLowerCase();
+
+  // 1. Check in-memory questions registry
+  if (questionsRegistry.has(cleanSlug)) {
+    return questionsRegistry.get(cleanSlug) || [];
+  }
+
+  // 2. Check curated static question bank for starter tests
+  const curated = CURATED_QUESTION_BANK[cleanSlug];
+  if (curated && curated.length > 0) {
+    return curated;
+  }
+
+  // 3. Check Firestore
+  if (isFirebaseConfigured && db) {
+    try {
+      const docRef = doc(db, "test_questions", cleanSlug);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data() as { questions?: TestQuestion[] };
+        if (data && Array.isArray(data.questions)) {
+          questionsRegistry.set(cleanSlug, data.questions);
+          return data.questions;
+        }
+      }
+    } catch {
+      // Graceful fallback on firestore read during static build
+    }
+  }
+
+  // 4. Return empty array for custom/user tests so user adds questions manually
+  return [];
+}
+
+/**
+ * Deletes questions for a mock test.
+ */
+export async function deleteCanonicalQuestions(slug: string): Promise<void> {
+  const cleanSlug = slug.trim().toLowerCase();
+  questionsRegistry.delete(cleanSlug);
+
+  if (isFirebaseConfigured && db) {
+    try {
+      await ensureAdminAuth();
+      const docRef = doc(db, "test_questions", cleanSlug);
+      await deleteDoc(docRef);
+    } catch (err) {
+      console.warn("[testService] Firestore delete questions warning:", err);
+    }
   }
 }

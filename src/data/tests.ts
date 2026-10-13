@@ -1,31 +1,28 @@
 import { MockTest } from "@/types";
 import { MOCK_TESTS, FEATURED_TEST_SLUGS } from "./baseTests";
+import {
+  getAllCanonicalPublishedTests,
+  getCanonicalFeaturedTests,
+  getCanonicalTestBySlug,
+} from "@/lib/data/testService";
 
 export { MOCK_TESTS, FEATURED_TEST_SLUGS };
 
 export function getAllTests(): MockTest[] {
-  return MOCK_TESTS.filter((t) => t.published);
+  return getAllCanonicalPublishedTests();
 }
 
-
 export function getFeaturedTests(): MockTest[] {
-  const featured = MOCK_TESTS.filter((t) => t.published && t.isFeatured);
-  return featured.sort((a, b) => {
-    const aIndex = FEATURED_TEST_SLUGS.indexOf(a.slug);
-    const bIndex = FEATURED_TEST_SLUGS.indexOf(b.slug);
-    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-    if (aIndex !== -1) return -1;
-    if (bIndex !== -1) return 1;
-    return 0;
-  });
+  return getCanonicalFeaturedTests();
 }
 
 export function getTestBySlug(slug: string): MockTest | undefined {
-  return MOCK_TESTS.find((t) => t.slug === slug && t.published);
+  return getCanonicalTestBySlug(slug, true);
 }
 
 export function getTestsByCategory(categorySlug: string): MockTest[] {
-  return MOCK_TESTS.filter(
+  const all = getAllCanonicalPublishedTests();
+  return all.filter(
     (t) => t.published && (categorySlug === "all" || t.categoryId === categorySlug)
   );
 }
@@ -41,6 +38,7 @@ export {
   fetchCanonicalTestBySlug,
   saveCanonicalTest,
   deleteCanonicalTest,
+  purgeCanonicalTesterTests,
+  saveCanonicalQuestions,
+  fetchCanonicalQuestionsForTest,
 } from "@/lib/data/testService";
-
-

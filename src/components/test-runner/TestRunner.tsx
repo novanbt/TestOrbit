@@ -384,6 +384,40 @@ export function TestRunner({ test, questions }: TestRunnerProps) {
   }
 
   // ----------------------------------------------------
+  // EMPTY QUESTION BANK GUARD
+  // ----------------------------------------------------
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center px-4 py-12">
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 text-center space-y-4 shadow-2xl">
+          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Questions Not Added Yet</h2>
+            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+              This mock test does not have any questions in its question bank yet.
+              You can manually add your own questions from the Admin Panel.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Link href={`/admin/tests/${test.slug}/questions`} className="w-full sm:w-auto">
+              <Button variant="primary" size="sm" className="w-full text-xs">
+                Add Questions in Admin
+              </Button>
+            </Link>
+            <Link href={`/tests/${test.slug}`} className="w-full sm:w-auto">
+              <Button variant="outline" size="sm" className="w-full text-xs border-slate-700 text-slate-300">
+                Back to Details
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------
   // RESULT SCORECARD VIEW
   // ----------------------------------------------------
   if (isCompleted && scorecard) {

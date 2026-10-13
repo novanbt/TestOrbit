@@ -63,9 +63,20 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
-    // Questions collection (readable & writable by authenticated users)
+    // Questions and Question Banks
     match /questions/{questionId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /test_questions/{slug} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Deleted Tests Tombstones (to prevent deleted mock tests from resurrecting)
+    match /deleted_tests/{testId} {
+      allow read: if true;
       allow write: if isAuthenticated();
     }
 

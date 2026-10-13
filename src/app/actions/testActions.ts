@@ -1,12 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { MockTest } from "@/types";
+import { MockTest, TestQuestion } from "@/types";
 import {
   saveCanonicalTest,
   deleteCanonicalTest,
   fetchCanonicalTestBySlug,
   fetchCanonicalTests,
+  purgeCanonicalTesterTests,
+  saveCanonicalQuestions,
+  fetchCanonicalQuestionsForTest,
 } from "@/lib/data/testService";
 
 export interface ActionResponse<T = unknown> {
@@ -42,6 +45,7 @@ export async function saveTestServerAction(test: MockTest): Promise<ActionRespon
       revalidatePath(`/tests/${test.slug}/take`);
       revalidatePath("/admin/tests");
       revalidatePath(`/admin/tests/${test.slug}/edit`);
+      revalidatePath(`/admin/tests/${test.slug}/questions`);
     } catch (revErr) {
       console.warn("[saveTestServerAction] Route revalidation warning:", revErr);
     }
@@ -69,7 +73,7 @@ export async function deleteTestServerAction(id: string, slug?: string): Promise
       return { success: false, error: "Test ID is required for deletion." };
     }
 
-    await deleteCanonicalTest(id);
+    await deleteCanonicalTest(id, slug);
 
     try {
       revalidatePath("/");
@@ -77,6 +81,8 @@ export async function deleteTestServerAction(id: string, slug?: string): Promise
       if (slug) {
         revalidatePath(`/tests/${slug}`);
         revalidatePath(`/tests/${slug}/take`);
+        revalidatePath(`/admin/tests/${slug}/questions`);
+        revalidatePath(`/admin/tests/${slug}/edit`);
       }
       revalidatePath("/admin/tests");
     } catch {}
@@ -85,6 +91,28 @@ export async function deleteTestServerAction(id: string, slug?: string): Promise
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[deleteTestServerAction] Error deleting test:", message);
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}
+
+/**
+ * Server action to purge all 117 pre-loaded seed/tester mock tests.
+ */
+export async function purgeAllTesterTestsServerAction(): Promise<ActionResponse<{ purgedCount: number }>> {
+  try {
+    const res = await purgeCanonicalTesterTests();
+    try {
+      revalidatePath("/");
+      revalidatePath("/explore");
+      revalidatePath("/admin/tests");
+    } catch {}
+    return { success: true, data: res };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[purgeAllTesterTestsServerAction] Error purges tests:", message);
     return {
       success: false,
       error: message,
@@ -124,6 +152,52 @@ export async function getAllTestsServerAction(): Promise<ActionResponse<MockTest
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[getAllTestsServerAction] Error fetching tests:", message);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Server action to persist manual questions for a test to Firestore.
+ */
+export async function saveQuestionsServerAction(
+  slug: string,
+  questions: TestQuestion[]
+): Promise<ActionResponse<TestQuestion[]>> {
+  try {
+    if (!slug || !slug.trim()) {
+      return { success: false, error: "Test slug is required." };
+    }
+    const clean = slug.trim().toLowerCase();
+    const saved = await saveCanonicalQuestions(clean, questions);
+
+    try {
+      revalidatePath(`/tests/${clean}`);
+      revalidatePath(`/tests/${clean}/take`);
+      revalidatePath(`/admin/tests/${clean}/questions`);
+    } catch {}
+
+    return { success: true, data: saved };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[saveQuestionsServerAction] Error saving questions:", message);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Server action to fetch questions for a test.
+ */
+export async function getQuestionsServerAction(slug: string): Promise<ActionResponse<TestQuestion[]>> {
+  try {
+    if (!slug || !slug.trim()) {
+      return { success: false, error: "Test slug is required." };
+    }
+    const clean = slug.trim().toLowerCase();
+    const questions = await fetchCanonicalQuestionsForTest(clean);
+    return { success: true, data: questions };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[getQuestionsServerAction] Error fetching questions:", message);
     return { success: false, error: message };
   }
 }

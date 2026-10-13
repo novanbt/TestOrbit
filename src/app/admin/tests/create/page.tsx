@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { MockTest, DifficultyLevel, Category } from "@/types";
 import { saveAdminTest, getAdminCategories, getAdminTestBySlug } from "@/lib/admin/adminStore";
-import { saveTestServerAction } from "@/app/actions/testActions";
+import { saveTestServerAction, saveQuestionsServerAction } from "@/app/actions/testActions";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency, formatDuration } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export default function CreateTestPage() {
   const [tagInput, setTagInput] = useState("");
   const [description, setDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(60);
-  const [questionCount, setQuestionCount] = useState(25);
+  const [questionCount, setQuestionCount] = useState(0);
   const [maxMarks, setMaxMarks] = useState(100);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>("Intermediate");
   const [language, setLanguage] = useState("English");
@@ -145,7 +145,7 @@ export default function CreateTestPage() {
       tags: tags.length > 0 ? tags : ["General"],
       targetAudience: tags.join(", ") || "All Students",
       description: description.trim() || `Full mock examination simulation for ${title.trim()}.`,
-      questionCount: Number(questionCount) || 20,
+      questionCount: Number(questionCount) || 0,
       durationMinutes: Number(durationMinutes) || 60,
       maxMarks: Number(maxMarks) || 100,
       difficulty,
@@ -160,20 +160,20 @@ export default function CreateTestPage() {
     };
 
     try {
-      // 1. Immediately store in local admin store so questions page finds it with zero delay
+      // 1. Explicitly initialize an empty question bank so NO fake questions appear
+      localStorage.setItem("testorbit_admin_questions_" + cleanSlug, JSON.stringify([]));
+
+      // 2. Immediately store in local admin store
       saveAdminTest(newTest);
 
-      // 2. Persist to server / Firestore
-      const result = await saveTestServerAction(newTest);
-      if (!result.success) {
-        console.warn("[createTest] Server action notice:", result.error);
-      }
+      // 3. Persist to server / Firestore
+      await saveTestServerAction(newTest);
+      await saveQuestionsServerAction(cleanSlug, []);
 
-      // 3. Redirect directly to questions builder for the new test!
+      // 4. Redirect directly to questions builder for manual question entry
       router.push(`/admin/tests/${cleanSlug}/questions`);
     } catch (err: unknown) {
       console.warn("[createTest] Server persistence error:", err);
-      // Since it is saved locally in saveAdminTest, proceed to questions editor
       router.push(`/admin/tests/${cleanSlug}/questions`);
     }
   };

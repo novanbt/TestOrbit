@@ -19,8 +19,20 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { MockTest, Category } from "@/types";
-import { getAdminTests, saveAdminTest, deleteAdminTest, getAdminCategories } from "@/lib/admin/adminStore";
-import { saveTestServerAction, deleteTestServerAction, getAllTestsServerAction } from "@/app/actions/testActions";
+import {
+  getAdminTests,
+  saveAdminTest,
+  deleteAdminTest,
+  getAdminCategories,
+  getAdminDeletedTestIds,
+  purgeAllTesterTests,
+} from "@/lib/admin/adminStore";
+import {
+  saveTestServerAction,
+  deleteTestServerAction,
+  getAllTestsServerAction,
+  purgeAllTesterTestsServerAction,
+} from "@/app/actions/testActions";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatCurrency, formatDuration } from "@/lib/utils";
@@ -33,6 +45,9 @@ export default function AdminTestsPage() {
   const [selectedDifficulty, setSelectedDifficulty] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showPurgeModal, setShowPurgeModal] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<number | "all">(25);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -51,8 +66,11 @@ export default function AdminTestsPage() {
     try {
       const res = await getAllTestsServerAction();
       if (res.success && res.data && res.data.length > 0) {
+        const deletedIds = getAdminDeletedTestIds();
         for (const t of res.data) {
-          saveAdminTest(t);
+          if (!deletedIds.has(t.id) && !deletedIds.has(t.slug)) {
+            saveAdminTest(t, false);
+          }
         }
         setTests(getAdminTests());
       }
@@ -85,10 +103,34 @@ export default function AdminTestsPage() {
 
   const handleDelete = async (id: string) => {
     const target = tests.find((t) => t.id === id);
-    deleteAdminTest(id);
-    setTests((prev) => prev.filter((t) => t.id !== id));
+    const slug = target?.slug;
+    deleteAdminTest(id, slug);
+    setTests((prev) => prev.filter((t) => t.id !== id && (!slug || t.slug !== slug)));
     setDeleteConfirmId(null);
-    await deleteTestServerAction(id, target?.slug);
+    setSuccessMessage(`Mock test "${target?.title || "Test"}" deleted successfully.`);
+    setTimeout(() => setSuccessMessage(null), 3500);
+
+    try {
+      await deleteTestServerAction(id, slug);
+    } catch (err) {
+      console.warn("[handleDelete] Server delete warning:", err);
+    }
+  };
+
+  const handlePurgeAllTesterTests = async () => {
+    setIsPurging(true);
+    try {
+      purgeAllTesterTests();
+      setTests(getAdminTests());
+      await purgeAllTesterTestsServerAction();
+      setShowPurgeModal(false);
+      setSuccessMessage("All starter tester tests have been permanently deleted.");
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err) {
+      console.error("[Purge] Failed:", err);
+    } finally {
+      setIsPurging(false);
+    }
   };
 
   const filteredTests = useMemo(() => {
@@ -148,13 +190,34 @@ export default function AdminTestsPage() {
           </p>
         </div>
 
-        <Link href="/admin/tests/create">
-          <Button variant="primary" size="md" className="gap-2 shadow-xs">
-            <PlusCircle className="w-4 h-4" />
-            Create New Test
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => setShowPurgeModal(true)}
+            className="gap-2 text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 shadow-2xs"
+            title="Delete all 117 pre-loaded starter tester tests"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Purge Starter Tests</span>
           </Button>
-        </Link>
+
+          <Link href="/admin/tests/create">
+            <Button variant="primary" size="md" className="gap-2 shadow-xs">
+              <PlusCircle className="w-4 h-4" />
+              Create New Test
+            </Button>
+          </Link>
+        </div>
       </div>
+
+      {/* Success Notification Banner */}
+      {successMessage && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200/80 rounded-xl text-xs text-emerald-800 flex items-center gap-2.5 shadow-2xs animate-in fade-in duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span className="font-medium">{successMessage}</span>
+        </div>
+      )}
 
       {/* 2. Filters & Search Toolbar */}
       <div className="p-4 bg-white border border-slate-200/80 rounded-xl shadow-xs space-y-3">
@@ -527,6 +590,64 @@ export default function AdminTestsPage() {
           </div>
         )}
       </div>
+
+      {/* Purge Starter Tests Modal */}
+      {showPurgeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Purge All Starter Tester Tests?
+              </h3>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                This will permanently delete all 117 pre-loaded seed/tester mock tests from your system.
+                Any custom mock tests you have created will be <strong>safely preserved</strong>.
+              </p>
+            </div>
+
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs">
+              <p className="font-semibold">Ready for production?</p>
+              <p className="mt-0.5 text-[11px] text-amber-700">
+                Only proceed when you have tested everything and want your own custom mock tests to be the only ones active.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPurgeModal(false)}
+                disabled={isPurging}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handlePurgeAllTesterTests}
+                disabled={isPurging}
+                className="bg-rose-600 hover:bg-rose-700 text-white border-transparent gap-1.5"
+              >
+                {isPurging ? (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Purging Tests...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Yes, Purge Starter Tests</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
