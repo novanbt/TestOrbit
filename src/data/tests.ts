@@ -1,35 +1,12 @@
 import { MockTest } from "@/types";
-import { schoolTests } from "./tests/school";
-import { competitiveTests } from "./tests/competitive";
-import { collegeTests } from "./tests/college";
-import { programmingTests } from "./tests/programming";
-import { languagesTests } from "./tests/languages";
-import { professionalTests } from "./tests/professional";
+import { MOCK_TESTS, FEATURED_TEST_SLUGS } from "./baseTests";
 
-export const MOCK_TESTS: MockTest[] = [
-  ...schoolTests,
-  ...competitiveTests,
-  ...collegeTests,
-  ...programmingTests,
-  ...languagesTests,
-  ...professionalTests,
-];
+export { MOCK_TESTS, FEATURED_TEST_SLUGS };
 
 export function getAllTests(): MockTest[] {
   return MOCK_TESTS.filter((t) => t.published);
 }
 
-// Curated display order to complete exactly 2 rows of 4 columns (8 tests total)
-const FEATURED_TEST_SLUGS = [
-  "class-10-mathematics-full-syllabus",
-  "jee-main-physics-practice",
-  "ssc-cgl-quantitative-aptitude",
-  "python-programming-fundamentals",
-  "hindi-bhasha-vyakarana-mock",
-  "neet-biology-high-yield",
-  "cloud-architecture-devops-foundations",
-  "financial-accounting-basics",
-];
 
 export function getFeaturedTests(): MockTest[] {
   const featured = MOCK_TESTS.filter((t) => t.published && t.isFeatured);
@@ -52,3 +29,18 @@ export function getTestsByCategory(categorySlug: string): MockTest[] {
     (t) => t.published && (categorySlug === "all" || t.categoryId === categorySlug)
   );
 }
+
+// Re-export canonical database methods for dynamic pages
+export {
+  getCanonicalTestBySlug,
+  getCanonicalFeaturedTests,
+  getAllCanonicalPublishedTests,
+  fetchCanonicalTests,
+  fetchCanonicalPublishedTests,
+  fetchCanonicalFeaturedTests,
+  fetchCanonicalTestBySlug,
+  saveCanonicalTest,
+  deleteCanonicalTest,
+} from "@/lib/data/testService";
+
+

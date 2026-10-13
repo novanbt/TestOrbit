@@ -21,6 +21,7 @@ import {
   getAdminCategories,
   deriveTagsForTest,
 } from "@/lib/admin/adminStore";
+import { saveTestServerAction } from "@/app/actions/testActions";
 import { Button } from "@/components/ui/Button";
 
 export default function EditTestPage() {
@@ -129,7 +130,7 @@ export default function EditTestPage() {
     setExpectations(expectations.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!existingTest) return;
 
@@ -167,10 +168,21 @@ export default function EditTestPage() {
       isFeatured,
     };
 
-    saveAdminTest(updatedTest);
-    setIsSubmitting(false);
-    setSuccessMessage("Mock test updated successfully!");
-    setTimeout(() => setSuccessMessage(null), 3000);
+    try {
+      const result = await saveTestServerAction(updatedTest);
+      if (!result.success) {
+        setErrorMessage(result.error || "Failed to update mock test in database.");
+      } else {
+        setExistingTest(updatedTest);
+        setSuccessMessage("Mock test updated and synchronized successfully!");
+        setTimeout(() => setSuccessMessage(null), 4000);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMessage(msg || "An unexpected error occurred while saving.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!existingTest && !errorMessage) {

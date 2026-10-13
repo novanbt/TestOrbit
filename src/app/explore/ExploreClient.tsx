@@ -20,9 +20,13 @@ import { getCategories } from "@/data/categories";
 import { getAllTests } from "@/data/tests";
 import { getAllTestSeries } from "@/data/test-series";
 import { filterMarketplaceItems, MarketplaceItem } from "@/data/marketplace";
-import { FilterState, ProductTypeFilter, SortOption } from "@/types";
+import { MockTest, FilterState, ProductTypeFilter, SortOption } from "@/types";
 
-export default function ExploreClient() {
+interface ExploreClientProps {
+  initialTests?: MockTest[];
+}
+
+export default function ExploreClient({ initialTests }: ExploreClientProps = {}) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -55,8 +59,25 @@ export default function ExploreClient() {
   }, [searchParams]);
 
   const categories = getCategories();
-  const allTests = getAllTests();
+  const [allTests, setAllTests] = useState<MockTest[]>(initialTests || getAllTests());
   const allSeries = getAllTestSeries();
+
+  useEffect(() => {
+    if (initialTests && initialTests.length > 0) {
+      setAllTests(initialTests);
+    }
+
+    const handleUpdate = () => {
+      import("@/lib/data/testService").then(({ fetchCanonicalPublishedTests }) => {
+        fetchCanonicalPublishedTests().then((fresh) => {
+          if (fresh && fresh.length > 0) setAllTests(fresh);
+        });
+      });
+    };
+
+    window.addEventListener("testorbit_admin_data_updated", handleUpdate);
+    return () => window.removeEventListener("testorbit_admin_data_updated", handleUpdate);
+  }, [initialTests]);
 
   const filterState: FilterState = useMemo(
     () => ({
@@ -78,8 +99,8 @@ export default function ExploreClient() {
   );
 
   const filteredItems = useMemo(
-    () => filterMarketplaceItems(filterState),
-    [filterState]
+    () => filterMarketplaceItems(filterState, allTests),
+    [filterState, allTests]
   );
 
   const activeFiltersCount = useMemo(() => {

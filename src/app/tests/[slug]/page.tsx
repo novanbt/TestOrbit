@@ -1,7 +1,7 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { getTestBySlug, getAllTests } from "@/data/tests";
+import { getAllTests, getCanonicalTestBySlug } from "@/data/tests";
 import TestDetailsClient from "./TestDetailsClient";
 
 interface PageProps {
@@ -17,7 +17,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const test = getTestBySlug(slug);
+  const test = getCanonicalTestBySlug(slug);
 
   if (!test) {
     return {
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function TestDetailsPage({ params }: PageProps) {
   const { slug } = await params;
-  const test = getTestBySlug(slug);
+  const test = getCanonicalTestBySlug(slug);
 
   if (!test) {
     notFound();
@@ -41,3 +41,4 @@ export default async function TestDetailsPage({ params }: PageProps) {
 
   return <TestDetailsClient test={test} />;
 }
+

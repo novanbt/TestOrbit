@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { MockTest, DifficultyLevel, Category } from "@/types";
 import { saveAdminTest, getAdminCategories, getAdminTestBySlug } from "@/lib/admin/adminStore";
+import { saveTestServerAction } from "@/app/actions/testActions";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency, formatDuration } from "@/lib/utils";
 
@@ -115,7 +116,7 @@ export default function CreateTestPage() {
     setExpectations(expectations.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -158,10 +159,20 @@ export default function CreateTestPage() {
       createdAt: new Date().toISOString().split("T")[0],
     };
 
-    saveAdminTest(newTest);
-
-    // Redirect directly to questions builder for the new test!
-    router.push(`/admin/tests/${cleanSlug}/questions`);
+    try {
+      const result = await saveTestServerAction(newTest);
+      if (!result.success) {
+        setErrorMessage(result.error || "Failed to create test in database.");
+        setIsSubmitting(false);
+        return;
+      }
+      // Redirect directly to questions builder for the new test!
+      router.push(`/admin/tests/${cleanSlug}/questions`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMessage(msg || "An unexpected error occurred.");
+      setIsSubmitting(false);
+    }
   };
 
   return (

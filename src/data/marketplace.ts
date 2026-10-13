@@ -27,8 +27,8 @@ export interface MarketplaceItem {
   createdAt: string;
 }
 
-export function getAllMarketplaceItems(): MarketplaceItem[] {
-  const tests: MarketplaceItem[] = getAllTests().map((t) => ({
+export function mapTestsToMarketplaceItems(tests: MockTest[]): MarketplaceItem[] {
+  return tests.map((t) => ({
     id: t.id,
     slug: t.slug,
     type: "test",
@@ -48,6 +48,10 @@ export function getAllMarketplaceItems(): MarketplaceItem[] {
     isFeatured: t.isFeatured,
     createdAt: t.createdAt,
   }));
+}
+
+export function getAllMarketplaceItems(testsList?: MockTest[]): MarketplaceItem[] {
+  const tests: MarketplaceItem[] = mapTestsToMarketplaceItems(testsList || getAllTests());
 
   const series: MarketplaceItem[] = getAllTestSeries().map((s) => ({
     id: s.id,
@@ -70,8 +74,8 @@ export function getAllMarketplaceItems(): MarketplaceItem[] {
   return [...tests, ...series];
 }
 
-export function filterMarketplaceItems(filters: FilterState): MarketplaceItem[] {
-  let items = getAllMarketplaceItems();
+export function filterMarketplaceItems(filters: FilterState, testsList?: MockTest[]): MarketplaceItem[] {
+  let items = getAllMarketplaceItems(testsList);
 
   // 1. Product Type
   if (filters.productType === "tests") {

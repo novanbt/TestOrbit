@@ -1,5 +1,6 @@
 import React, { Suspense } from "react";
 import ExploreClient from "./ExploreClient";
+import { getAllCanonicalPublishedTests } from "@/data/tests";
 
 export const metadata = {
   title: "Explore Tests — TestOrbit",
@@ -8,6 +9,8 @@ export const metadata = {
 };
 
 export default function ExplorePage() {
+  const initialTests = getAllCanonicalPublishedTests();
+
   return (
     <Suspense
       fallback={
@@ -17,7 +20,8 @@ export default function ExplorePage() {
         </div>
       }
     >
-      <ExploreClient />
+      <ExploreClient initialTests={initialTests} />
     </Suspense>
   );
 }
+

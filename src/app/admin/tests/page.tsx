@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { MockTest, Category } from "@/types";
 import { getAdminTests, saveAdminTest, deleteAdminTest, getAdminCategories } from "@/lib/admin/adminStore";
+import { saveTestServerAction, deleteTestServerAction } from "@/app/actions/testActions";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatCurrency, formatDuration } from "@/lib/utils";
@@ -44,19 +45,26 @@ export default function AdminTestsPage() {
     return () => window.removeEventListener("testorbit_admin_data_updated", handleUpdate);
   }, []);
 
-  const handleTogglePublished = (test: MockTest) => {
+  const handleTogglePublished = async (test: MockTest) => {
     const updated: MockTest = { ...test, published: !test.published };
     saveAdminTest(updated);
+    setTests((prev) => prev.map((t) => (t.id === test.id ? updated : t)));
+    await saveTestServerAction(updated);
   };
 
-  const handleToggleFeatured = (test: MockTest) => {
+  const handleToggleFeatured = async (test: MockTest) => {
     const updated: MockTest = { ...test, isFeatured: !test.isFeatured };
     saveAdminTest(updated);
+    setTests((prev) => prev.map((t) => (t.id === test.id ? updated : t)));
+    await saveTestServerAction(updated);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    const target = tests.find((t) => t.id === id);
     deleteAdminTest(id);
+    setTests((prev) => prev.filter((t) => t.id !== id));
     setDeleteConfirmId(null);
+    await deleteTestServerAction(id, target?.slug);
   };
 
   const filteredTests = useMemo(() => {

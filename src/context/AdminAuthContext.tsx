@@ -11,7 +11,7 @@ interface AdminAuthContextType {
   logoutAdmin: () => void;
 }
 
-const ADMIN_CREDENTIALS = {
+export const ADMIN_CREDENTIALS = {
   email: "testorbit@ellipse.com",
   password: "tdSUi4rqJ_NN3n4",
 };

@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. User accounts, profiles, and student attempt histories
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // 2. Canonical Mock Tests collection
+    match /tests/{testId} {
+      // Public client website and learners can read mock tests
+      allow read: if true;
+      // Authenticated administrators can create, update, or delete mock tests
+      allow write: if request.auth != null;
+    }
+
+    // 3. Test Series and Categories
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /test_series/{seriesId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

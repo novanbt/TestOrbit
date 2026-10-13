@@ -30,6 +30,7 @@ export interface MockTest {
   published: boolean;
   isFeatured?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface TestSeries {

@@ -8,12 +8,12 @@ import { CategoryCard } from "@/components/marketplace/CategoryCard";
 import { TestCard } from "@/components/marketplace/TestCard";
 import { TestSeriesCard } from "@/components/marketplace/TestSeriesCard";
 import { getCategories } from "@/data/categories";
-import { getFeaturedTests } from "@/data/tests";
+import { getCanonicalFeaturedTests } from "@/data/tests";
 import { getAllTestSeries } from "@/data/test-series";
 
 export default function HomePage() {
   const categories = getCategories();
-  const featuredTests = getFeaturedTests();
+  const featuredTests = getCanonicalFeaturedTests();
   const testSeries = getAllTestSeries().slice(0, 3);
 
   return (
