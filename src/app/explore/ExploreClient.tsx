@@ -202,8 +202,8 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
         </div>
 
         {/* Desktop Filter Sidebar */}
-        <aside className="hidden lg:block w-64 flex-shrink-0 space-y-6 bg-slate-50/70 p-5 rounded-xl border border-slate-200/90 sticky top-24">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+        <aside className="hidden lg:block w-64 flex-shrink-0 space-y-6 bg-slate-50/70 p-5 pb-6 rounded-xl border border-slate-200/90 sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain custom-scrollbar">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200 sticky top-0 bg-slate-50/95 backdrop-blur-xs z-10 -mt-2 pt-2 -mx-1 px-1">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-indigo-600" />
               <h2 className="text-sm font-semibold text-slate-900">Filters</h2>
@@ -218,6 +218,7 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
               </button>
             )}
           </div>
+
 
           {/* Product Type Filter */}
           <div className="space-y-2">
