@@ -1,20 +1,27 @@
-import React from "react";
+import React, { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, BookOpen, Layers } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { SearchBar } from "@/components/marketplace/SearchBar";
 import { CategoryCard } from "@/components/marketplace/CategoryCard";
-import { TestCard } from "@/components/marketplace/TestCard";
 import { TestSeriesCard } from "@/components/marketplace/TestSeriesCard";
+import { FeaturedTestsClient } from "@/components/marketplace/FeaturedTestsClient";
 import { getCategories } from "@/data/categories";
-import { getCanonicalFeaturedTests } from "@/data/tests";
+import { fetchCanonicalFeaturedTests } from "@/lib/data/testService";
 import { getAllTestSeries } from "@/data/test-series";
+import { connection } from "next/server";
+
+async function FeaturedTestsStream() {
+  await connection();
+  const featuredTests = await fetchCanonicalFeaturedTests();
+  return <FeaturedTestsClient initialTests={featuredTests} />;
+}
 
 export default function HomePage() {
   const categories = getCategories();
-  const featuredTests = getCanonicalFeaturedTests();
   const testSeries = getAllTestSeries().slice(0, 3);
+
 
 
 
@@ -102,11 +109,18 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {featuredTests.map((test) => (
-              <TestCard key={test.id} test={test} />
-            ))}
-          </div>
+          <Suspense
+            fallback={
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-64 rounded-xl bg-slate-100 animate-pulse" />
+                ))}
+              </div>
+            }
+          >
+            <FeaturedTestsStream />
+          </Suspense>
+
         </div>
       </section>
 
