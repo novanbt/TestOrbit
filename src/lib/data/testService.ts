@@ -54,27 +54,25 @@ let adminAuthPromise: Promise<unknown> | null = null;
  * Ensures administrator is signed in to Firebase Auth.
  */
 export async function ensureAdminAuth() {
-  if (!auth) return null;
+  if (!auth) {
+    throw new Error("Firebase Auth client is not initialized.");
+  }
   if (auth.currentUser) return auth.currentUser;
 
-  if (!adminAuthPromise) {
-    adminAuthPromise = signInWithEmailAndPassword(
+  try {
+    const cred = await signInWithEmailAndPassword(
       auth,
       ADMIN_CREDENTIALS.email,
       ADMIN_CREDENTIALS.password
-    )
-      .then((cred) => cred.user)
-      .catch((err) => {
-        console.warn("[testService] Firebase Auth sign in failed for admin:", err?.message);
-        return null;
-      })
-      .finally(() => {
-        adminAuthPromise = null;
-      });
+    );
+    return cred.user;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[testService] Firebase Auth sign in failed for admin:", msg);
+    throw new Error(`Admin authentication failed: ${msg}`);
   }
-
-  return adminAuthPromise;
 }
+
 
 /**
  * Asynchronously syncs documents from Firestore into the canonical registry.
