@@ -111,6 +111,8 @@ export async function syncBundlesFromFirestore(): Promise<void> {
     // 2. Purge deleted bundles
     if (allBaseBundlesDeleted) {
       for (const bundle of BASE_BUNDLES) {
+        deletedBundleSlugs.add(bundle.slug.toLowerCase());
+        if (bundle.id) deletedBundleIds.add(bundle.id);
         canonicalBundleRegistry.delete(bundle.slug);
         canonicalBundleRegistry.delete(bundle.slug.toLowerCase());
         if (bundle.id) canonicalBundleRegistry.delete(bundle.id);
@@ -155,7 +157,10 @@ export function getAllCanonicalBundles(): TestBundle[] {
   const unique = new Map<string, TestBundle>();
   for (const b of canonicalBundleRegistry.values()) {
     const sLower = b.slug.toLowerCase();
-    if (allBaseBundlesDeleted && BASE_BUNDLES.some((bb) => bb.slug.toLowerCase() === sLower)) {
+    if (
+      allBaseBundlesDeleted &&
+      BASE_BUNDLES.some((bb) => bb.slug.toLowerCase() === sLower || (bb.id && b.id && bb.id === b.id))
+    ) {
       continue;
     }
     if (!deletedBundleSlugs.has(sLower) && (!b.id || !deletedBundleIds.has(b.id))) {

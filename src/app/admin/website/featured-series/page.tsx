@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Layers, Star, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { getAllCanonicalBundles } from "@/lib/data/bundleService";
+import { fetchCanonicalBundles } from "@/lib/data/bundleService";
 import { saveSeriesAction } from "@/app/actions/adminStudioActions";
 import { TestBundle } from "@/types";
 
@@ -12,7 +12,7 @@ export default function FeaturedSeriesCMSPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
-    setSeriesList(getAllCanonicalBundles());
+    fetchCanonicalBundles().then(setSeriesList);
   }, []);
 
   const handleToggleFeatured = async (series: TestBundle) => {

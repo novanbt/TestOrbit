@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { StudioBadge, StudioEmptyState } from "@/components/admin/StudioUI";
-import { getAllCanonicalBundles } from "@/lib/data/bundleService";
+import { fetchCanonicalBundles } from "@/lib/data/bundleService";
 import { fetchCanonicalTests } from "@/lib/data/testService";
 import { saveSeriesAction, deleteSeriesAction } from "@/app/actions/adminStudioActions";
 import { TestBundle, MockTest } from "@/types";
@@ -48,7 +48,7 @@ export default function TestSeriesAdminPage() {
     setLoading(true);
     try {
       const [s, t] = await Promise.all([
-        Promise.resolve(getAllCanonicalBundles()),
+        fetchCanonicalBundles(),
         fetchCanonicalTests(),
       ]);
       setSeriesList(s);

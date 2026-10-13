@@ -16,14 +16,14 @@ import {
   Layers,
   ArrowRight,
 } from "lucide-react";
-import { MockTest } from "@/types";
+import { MockTest, TestBundle, BundleIncludedTestItem } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { formatPriceInRupees, formatDuration } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { isUserEntitledToTest } from "@/lib/data/entitlementService";
-import { getAllCanonicalPublishedBundles } from "@/lib/data/bundleService";
+import { getAllCanonicalPublishedBundles, fetchCanonicalPublishedBundles } from "@/lib/data/bundleService";
 
 interface TestDetailsClientProps {
   test?: MockTest;
@@ -34,8 +34,15 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
   const { user } = useAuth();
   const baseTest = propTest || initialTest!;
   const [test, setTest] = useState<MockTest>(baseTest);
+  const [bundles, setBundles] = useState<TestBundle[]>(getAllCanonicalPublishedBundles());
   const [copied, setCopied] = useState(false);
   const [isEntitled, setIsEntitled] = useState(false);
+
+  useEffect(() => {
+    fetchCanonicalPublishedBundles().then((fresh) => {
+      if (Array.isArray(fresh)) setBundles(fresh);
+    });
+  }, []);
 
   useEffect(() => {
     if (user?.id) {
@@ -44,13 +51,12 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
   }, [user?.id, baseTest.id]);
 
   const parentBundle = React.useMemo(() => {
-    const bundles = getAllCanonicalPublishedBundles();
     return bundles.find(
       (b) =>
-        b.includedItems?.some((i) => i.testSlug === test.slug || i.testId === test.id) ||
+        b.includedItems?.some((i: BundleIncludedTestItem) => i.testSlug === test.slug || i.testId === test.id) ||
         b.includedTestSlugs?.includes(test.slug)
     );
-  }, [test.slug, test.id]);
+  }, [bundles, test.slug, test.id]);
 
 
   useEffect(() => {

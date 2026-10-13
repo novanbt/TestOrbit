@@ -340,8 +340,10 @@ export async function saveSeriesAction(series: TestBundle): Promise<ServerAction
     try {
       revalidatePath("/");
       revalidatePath("/series");
+      revalidatePath("/explore");
       revalidatePath("/test-series");
       revalidatePath(`/series/${saved.slug}`);
+      revalidatePath(`/test-series/${saved.slug}`);
       revalidatePath("/admin/series");
     } catch {}
 
@@ -366,6 +368,8 @@ export async function deleteSeriesAction(id: string): Promise<ServerActionRespon
     try {
       revalidatePath("/");
       revalidatePath("/series");
+      revalidatePath("/explore");
+      revalidatePath("/test-series");
       revalidatePath("/admin/series");
     } catch {}
 

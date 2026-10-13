@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import { connection } from "next/server";
 import ExploreClient from "./ExploreClient";
 import { fetchCanonicalPublishedTests } from "@/lib/data/testService";
+import { fetchCanonicalPublishedBundles } from "@/lib/data/bundleService";
 
 export const metadata = {
   title: "Explore Tests — TestOrbit",
@@ -11,8 +12,11 @@ export const metadata = {
 
 async function ExploreCatalogue() {
   await connection();
-  const initialTests = await fetchCanonicalPublishedTests();
-  return <ExploreClient initialTests={initialTests} />;
+  const [initialTests, initialSeries] = await Promise.all([
+    fetchCanonicalPublishedTests(),
+    fetchCanonicalPublishedBundles(),
+  ]);
+  return <ExploreClient initialTests={initialTests} initialSeries={initialSeries} />;
 }
 
 export default function ExplorePage() {

@@ -20,13 +20,14 @@ import { getCategories } from "@/data/categories";
 import { getAllTests } from "@/data/tests";
 import { getAllTestSeries } from "@/data/test-series";
 import { filterMarketplaceItems, MarketplaceItem } from "@/data/marketplace";
-import { MockTest, FilterState, ProductTypeFilter, SortOption } from "@/types";
+import { MockTest, TestBundle, FilterState, ProductTypeFilter, SortOption } from "@/types";
 
 interface ExploreClientProps {
   initialTests?: MockTest[];
+  initialSeries?: TestBundle[];
 }
 
-export default function ExploreClient({ initialTests }: ExploreClientProps = {}) {
+export default function ExploreClient({ initialTests, initialSeries }: ExploreClientProps = {}) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -60,11 +61,16 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
 
   const categories = getCategories();
   const [allTests, setAllTests] = useState<MockTest[]>(initialTests !== undefined ? initialTests : getAllTests());
-  const [allSeries, setAllSeries] = useState(getAllTestSeries());
+  const [allSeries, setAllSeries] = useState<TestBundle[]>(
+    initialSeries !== undefined ? initialSeries : getAllTestSeries()
+  );
 
   useEffect(() => {
     if (initialTests !== undefined) {
       setAllTests(initialTests);
+    }
+    if (initialSeries !== undefined) {
+      setAllSeries(initialSeries);
     }
 
     // Always fetch fresh canonical tests & bundles from Firestore / local registry on client mount
@@ -76,13 +82,14 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
       });
     });
 
-    import("@/lib/data/bundleService").then(({ getAllCanonicalPublishedBundles }) => {
-      const freshBundles = getAllCanonicalPublishedBundles();
-      if (Array.isArray(freshBundles)) {
-        setAllSeries(freshBundles);
-      }
+    import("@/lib/data/bundleService").then(({ fetchCanonicalPublishedBundles }) => {
+      fetchCanonicalPublishedBundles().then((fresh) => {
+        if (Array.isArray(fresh)) {
+          setAllSeries(fresh);
+        }
+      });
     });
-  }, [initialTests]);
+  }, [initialTests, initialSeries]);
 
 
 

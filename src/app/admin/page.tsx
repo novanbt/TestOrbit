@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/Button";
 import { getStudioDashboardMetrics, getAllOrders } from "@/lib/admin/adminDataService";
 import { getStudioDashboardMetricsAction } from "@/app/actions/adminStudioActions";
 import { fetchCanonicalTests } from "@/lib/data/testService";
-import { getAllCanonicalBundles } from "@/lib/data/bundleService";
+import { fetchCanonicalBundles } from "@/lib/data/bundleService";
 import { AdminDashboardMetrics, CommerceOrder } from "@/types/admin";
 import { MockTest, TestBundle } from "@/types";
 
@@ -50,7 +50,7 @@ export default function StudioDashboardPage() {
 
         const [t, b, o] = await Promise.all([
           fetchCanonicalTests(),
-          Promise.resolve(getAllCanonicalBundles()),
+          fetchCanonicalBundles(),
           getAllOrders(),
         ]);
 
