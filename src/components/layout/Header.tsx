@@ -43,8 +43,8 @@ export default function Header() {
             <Image
               src="/logo-nav.png"
               alt="TestOrbit"
-              width={162}
-              height={38}
+              width={160}
+              height={45}
               className="h-9 sm:h-10 w-auto object-contain"
               priority
             />

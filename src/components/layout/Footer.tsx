@@ -23,7 +23,7 @@ export default function Footer() {
                 src="/logo-nav.png"
                 alt="TestOrbit"
                 width={140}
-                height={34}
+                height={39}
                 className="h-8 w-auto object-contain"
               />
             </Link>
