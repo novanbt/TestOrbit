@@ -10,6 +10,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "@/lib/firebase/client";
+import { ensureAdminAuthenticated } from "@/lib/firebase/serverAuth";
 import { MockTest, TestQuestion } from "@/types";
 import { MOCK_TESTS, FEATURED_TEST_SLUGS } from "@/data/baseTests";
 import { CURATED_QUESTION_BANK } from "@/data/question-bank";
@@ -20,18 +21,58 @@ const questionsRegistry = new Map<string, TestQuestion[]>();
 let isInitialized = false;
 let isSyncingFirestore = false;
 
+// Persistent deletion tracking
+let allBaseDeleted = false;
+const deletedSlugs = new Set<string>();
+const deletedIds = new Set<string>();
+
+function loadLocalCache() {
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem("testorbit_catalog_state");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.allBaseDeleted !== undefined) allBaseDeleted = Boolean(parsed.allBaseDeleted);
+        if (Array.isArray(parsed.deletedSlugs)) parsed.deletedSlugs.forEach((s: string) => deletedSlugs.add(s.toLowerCase()));
+        if (Array.isArray(parsed.deletedIds)) parsed.deletedIds.forEach((id: string) => deletedIds.add(id));
+      }
+    } catch {}
+  }
+}
+
+function syncLocalCache() {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(
+        "testorbit_catalog_state",
+        JSON.stringify({
+          allBaseDeleted,
+          deletedSlugs: Array.from(deletedSlugs),
+          deletedIds: Array.from(deletedIds),
+        })
+      );
+    } catch {}
+  }
+}
+
+// Read cache synchronously on module load if in browser
+loadLocalCache();
+
 /**
- * Initializes the in-memory registry with base mock tests.
+ * Initializes the in-memory registry with base mock tests (skipping any deleted ones).
  */
 export function initRegistry() {
-  if (isInitialized && canonicalRegistry.size > 0) return;
+  if (isInitialized) return;
+  loadLocalCache();
 
-  for (const test of MOCK_TESTS) {
-    if (!canonicalRegistry.has(test.slug)) {
-      canonicalRegistry.set(test.slug, test);
-    }
-    if (test.id && !canonicalRegistry.has(test.id)) {
-      canonicalRegistry.set(test.id, test);
+  if (!allBaseDeleted) {
+    for (const test of MOCK_TESTS) {
+      const slugLower = test.slug.toLowerCase();
+      if (!deletedSlugs.has(slugLower) && (!test.id || !deletedIds.has(test.id))) {
+        if (!canonicalRegistry.has(test.slug)) canonicalRegistry.set(test.slug, test);
+        if (!canonicalRegistry.has(slugLower)) canonicalRegistry.set(slugLower, test);
+        if (test.id && !canonicalRegistry.has(test.id)) canonicalRegistry.set(test.id, test);
+      }
     }
   }
 
@@ -39,25 +80,68 @@ export function initRegistry() {
 }
 
 /**
- * Asynchronously syncs documents from Firestore into the canonical registry.
+ * Asynchronously syncs documents from Firestore into the canonical registry,
+ * respecting the catalog manifest state (deleted items or all base deleted).
  */
 export async function syncFromFirestore(): Promise<void> {
   if (!isFirebaseConfigured || !db || isSyncingFirestore) return;
   isSyncingFirestore = true;
 
   try {
+    // 1. Fetch catalog manifest state from Firestore
+    try {
+      const manifestDoc = await getDoc(doc(db, "tests", "_catalog_state"));
+      if (manifestDoc.exists()) {
+        const mData = manifestDoc.data();
+        if (mData?.allBaseDeleted !== undefined) {
+          allBaseDeleted = Boolean(mData.allBaseDeleted);
+        }
+        if (Array.isArray(mData?.deletedSlugs)) {
+          mData.deletedSlugs.forEach((s: string) => deletedSlugs.add(s.toLowerCase()));
+        }
+        if (Array.isArray(mData?.deletedIds)) {
+          mData.deletedIds.forEach((id: string) => deletedIds.add(id));
+        }
+        syncLocalCache();
+      }
+    } catch (err) {
+      console.warn("[testService] Catalog manifest sync notice:", err);
+    }
+
+    // 2. Purge any deleted tests from the registry
+    if (allBaseDeleted) {
+      for (const test of MOCK_TESTS) {
+        canonicalRegistry.delete(test.slug);
+        canonicalRegistry.delete(test.slug.toLowerCase());
+        if (test.id) canonicalRegistry.delete(test.id);
+      }
+    } else {
+      for (const [key, test] of canonicalRegistry.entries()) {
+        if (deletedSlugs.has(test.slug.toLowerCase()) || (test.id && deletedIds.has(test.id))) {
+          canonicalRegistry.delete(key);
+        }
+      }
+    }
+
+    // 3. Load all active tests from Firestore tests collection
     const testsCol = collection(db, "tests");
     const snap = await getDocs(testsCol);
     if (!snap.empty) {
       snap.forEach((d) => {
+        if (d.id === "_catalog_state") return; // Metadata doc, not a mock test
         const item = d.data() as MockTest;
         if (item && item.slug) {
-          canonicalRegistry.set(item.slug, item);
-          if (item.id) canonicalRegistry.set(item.id, item);
+          const slugLower = item.slug.toLowerCase();
+          if (!deletedSlugs.has(slugLower) && (!item.id || !deletedIds.has(item.id))) {
+            canonicalRegistry.set(item.slug, item);
+            canonicalRegistry.set(slugLower, item);
+            if (item.id) canonicalRegistry.set(item.id, item);
+          }
         }
       });
     }
 
+    // 4. Load questions
     try {
       const qSnap = await getDocs(collection(db, "test_questions"));
       if (!qSnap.empty) {
@@ -65,6 +149,7 @@ export async function syncFromFirestore(): Promise<void> {
           const data = d.data() as { questions?: TestQuestion[] };
           if (data && Array.isArray(data.questions)) {
             questionsRegistry.set(d.id, data.questions);
+            questionsRegistry.set(d.id.toLowerCase(), data.questions);
           }
         });
       }
@@ -84,16 +169,26 @@ export function getCanonicalTestBySlug(slug: string, requirePublished: boolean =
   if (!slug) return undefined;
   const clean = slug.trim().toLowerCase();
 
+  if (allBaseDeleted && !canonicalRegistry.has(clean)) {
+    return undefined;
+  }
+  if (deletedSlugs.has(clean)) {
+    return undefined;
+  }
+
   for (const [k, test] of canonicalRegistry.entries()) {
     if (k.toLowerCase() === clean || test.slug.toLowerCase() === clean) {
       if (!requirePublished || test.published) return test;
     }
   }
 
-  const base = MOCK_TESTS.find((t) => t.slug.toLowerCase() === clean && (!requirePublished || t.published));
-  if (base) {
-    return base;
+  if (!allBaseDeleted) {
+    const base = MOCK_TESTS.find((t) => t.slug.toLowerCase() === clean && (!requirePublished || t.published));
+    if (base && !deletedSlugs.has(clean)) {
+      return base;
+    }
   }
+
   return undefined;
 }
 
@@ -105,6 +200,10 @@ export async function fetchCanonicalTestBySlug(slug: string, requirePublished: b
   if (!slug) return undefined;
   const clean = slug.trim().toLowerCase();
 
+  if (deletedSlugs.has(clean)) {
+    return undefined;
+  }
+
   if (isFirebaseConfigured && db) {
     try {
       const q = query(collection(db, "tests"), where("slug", "==", clean), limit(1));
@@ -115,8 +214,9 @@ export async function fetchCanonicalTestBySlug(slug: string, requirePublished: b
       }
       if (!snap.empty) {
         const item = snap.docs[0].data() as MockTest;
-        if (item) {
+        if (item && item.slug) {
           canonicalRegistry.set(item.slug, item);
+          canonicalRegistry.set(item.slug.toLowerCase(), item);
           if (item.id) canonicalRegistry.set(item.id, item);
           if (!requirePublished || item.published) {
             return item;
@@ -141,8 +241,12 @@ export function getAllCanonicalPublishedTests(): MockTest[] {
   const result: MockTest[] = [];
 
   for (const test of canonicalRegistry.values()) {
-    if (test.published && !seenSlugs.has(test.slug)) {
-      seenSlugs.add(test.slug);
+    const sLower = test.slug.toLowerCase();
+    if (allBaseDeleted && MOCK_TESTS.some((bt) => bt.slug.toLowerCase() === sLower)) {
+      continue;
+    }
+    if (test.published && !seenSlugs.has(sLower) && !deletedSlugs.has(sLower)) {
+      seenSlugs.add(sLower);
       result.push(test);
     }
   }
@@ -159,8 +263,9 @@ export async function fetchCanonicalTests(): Promise<MockTest[]> {
   const seenSlugs = new Set<string>();
   const result: MockTest[] = [];
   for (const test of canonicalRegistry.values()) {
-    if (!seenSlugs.has(test.slug)) {
-      seenSlugs.add(test.slug);
+    const sLower = test.slug.toLowerCase();
+    if (!seenSlugs.has(sLower) && !deletedSlugs.has(sLower)) {
+      seenSlugs.add(sLower);
       result.push(test);
     }
   }
@@ -217,13 +322,30 @@ export async function saveCanonicalTest(test: MockTest): Promise<MockTest> {
     updatedAt: new Date().toISOString(),
   };
 
+  const slugLower = payload.slug.toLowerCase();
+  deletedSlugs.delete(slugLower);
+  deletedIds.delete(payload.id);
+
   canonicalRegistry.set(payload.slug, payload);
+  canonicalRegistry.set(slugLower, payload);
   canonicalRegistry.set(payload.id, payload);
+  syncLocalCache();
 
   if (isFirebaseConfigured && db) {
     try {
+      await ensureAdminAuthenticated();
       const docRef = doc(db, "tests", payload.id);
       await setDoc(docRef, payload);
+
+      await setDoc(
+        doc(db, "tests", "_catalog_state"),
+        {
+          deletedSlugs: Array.from(deletedSlugs),
+          deletedIds: Array.from(deletedIds),
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
     } catch (err) {
       console.warn("[testService] Firestore write warning:", err);
     }
@@ -233,7 +355,7 @@ export async function saveCanonicalTest(test: MockTest): Promise<MockTest> {
 }
 
 /**
- * Deletes a test from canonical registry and Firestore.
+ * Deletes a test from canonical registry and Firestore, persisting the deletion.
  */
 export async function deleteCanonicalTest(id: string, slug?: string): Promise<void> {
   initRegistry();
@@ -250,19 +372,102 @@ export async function deleteCanonicalTest(id: string, slug?: string): Promise<vo
 
   const effectiveId = target?.id || id;
   const effectiveSlug = target?.slug || slug || id;
+  const slugLower = effectiveSlug.toLowerCase();
+
+  deletedIds.add(effectiveId);
+  deletedSlugs.add(slugLower);
 
   canonicalRegistry.delete(effectiveId);
   canonicalRegistry.delete(effectiveSlug);
+  canonicalRegistry.delete(slugLower);
   questionsRegistry.delete(effectiveSlug);
+  questionsRegistry.delete(slugLower);
+
+  if (getAllCanonicalPublishedTests().length === 0) {
+    allBaseDeleted = true;
+  }
+  syncLocalCache();
 
   if (isFirebaseConfigured && db) {
     try {
-      await deleteDoc(doc(db, "tests", effectiveId));
+      await ensureAdminAuthenticated();
+      if (effectiveId && effectiveId !== "_catalog_state") {
+        await deleteDoc(doc(db, "tests", effectiveId)).catch(() => {});
+      }
       await deleteDoc(doc(db, "test_questions", effectiveSlug)).catch(() => {});
+
+      await setDoc(
+        doc(db, "tests", "_catalog_state"),
+        {
+          allBaseDeleted,
+          deletedSlugs: Array.from(deletedSlugs),
+          deletedIds: Array.from(deletedIds),
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
     } catch (err) {
       console.warn("[testService] Firestore delete warning:", err);
     }
   }
+}
+
+/**
+ * Bulk deletes multiple tests from canonical registry and Firestore,
+ * ensuring deletions are permanently tracked in the catalog manifest.
+ */
+export async function bulkDeleteCanonicalTests(items: { id: string; slug?: string }[]): Promise<number> {
+  initRegistry();
+
+  let count = 0;
+  for (const item of items) {
+    const effectiveId = item.id;
+    const effectiveSlug = item.slug || item.id;
+    const slugLower = effectiveSlug.toLowerCase();
+
+    deletedIds.add(effectiveId);
+    deletedSlugs.add(slugLower);
+
+    canonicalRegistry.delete(effectiveId);
+    canonicalRegistry.delete(effectiveSlug);
+    canonicalRegistry.delete(slugLower);
+    questionsRegistry.delete(effectiveSlug);
+    questionsRegistry.delete(slugLower);
+    count++;
+  }
+
+  // If user deleted all tests or more than 50 tests, set allBaseDeleted = true
+  if (canonicalRegistry.size === 0 || count >= 50 || getAllCanonicalPublishedTests().length === 0) {
+    allBaseDeleted = true;
+    for (const t of MOCK_TESTS) {
+      deletedIds.add(t.id);
+      deletedSlugs.add(t.slug.toLowerCase());
+    }
+  }
+  syncLocalCache();
+
+  if (isFirebaseConfigured && db) {
+    try {
+      await ensureAdminAuthenticated();
+
+      for (const item of items) {
+        if (item.id && item.id !== "_catalog_state") {
+          await deleteDoc(doc(db, "tests", item.id)).catch(() => {});
+        }
+      }
+
+      await setDoc(doc(db, "tests", "_catalog_state"), {
+        allBaseDeleted,
+        deletedSlugs: Array.from(deletedSlugs),
+        deletedIds: Array.from(deletedIds),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn("[testService] Firestore bulk delete warning:", err);
+    }
+  }
+
+  return count;
 }
 
 /**
@@ -282,10 +487,12 @@ export async function fetchCanonicalQuestionsForTest(
     return questionsRegistry.get(cleanSlug) || [];
   }
 
-  // 2. Check curated static question bank
-  const curated = CURATED_QUESTION_BANK[cleanSlug];
-  if (curated && curated.length > 0) {
-    return curated;
+  // 2. Check curated static question bank (only if not deleted)
+  if (!deletedSlugs.has(cleanSlug)) {
+    const curated = CURATED_QUESTION_BANK[cleanSlug];
+    if (curated && curated.length > 0) {
+      return curated;
+    }
   }
 
   // 3. Check Firestore

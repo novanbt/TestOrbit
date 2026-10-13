@@ -59,18 +59,18 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
   }, [searchParams]);
 
   const categories = getCategories();
-  const [allTests, setAllTests] = useState<MockTest[]>(initialTests || getAllTests());
+  const [allTests, setAllTests] = useState<MockTest[]>(initialTests !== undefined ? initialTests : getAllTests());
   const [allSeries, setAllSeries] = useState(getAllTestSeries());
 
   useEffect(() => {
-    if (initialTests && initialTests.length > 0) {
+    if (initialTests !== undefined) {
       setAllTests(initialTests);
     }
 
     // Always fetch fresh canonical tests & bundles from Firestore / local registry on client mount
     import("@/lib/data/testService").then(({ fetchCanonicalPublishedTests }) => {
       fetchCanonicalPublishedTests().then((fresh) => {
-        if (fresh && fresh.length > 0) {
+        if (Array.isArray(fresh)) {
           setAllTests(fresh);
         }
       });
@@ -78,7 +78,7 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
 
     import("@/lib/data/bundleService").then(({ getAllCanonicalPublishedBundles }) => {
       const freshBundles = getAllCanonicalPublishedBundles();
-      if (freshBundles && freshBundles.length > 0) {
+      if (Array.isArray(freshBundles)) {
         setAllSeries(freshBundles);
       }
     });

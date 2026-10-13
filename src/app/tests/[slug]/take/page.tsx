@@ -18,10 +18,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  let test = getCanonicalTestBySlug(slug);
-  if (!test) {
-    test = await fetchCanonicalTestBySlug(slug);
-  }
+  const test = await fetchCanonicalTestBySlug(slug);
 
   if (!test) {
     return {
@@ -43,10 +40,7 @@ async function ExamLoader({ slug, test }: { slug: string; test: MockTest }) {
 export default async function TakeTestPage({ params }: PageProps) {
   await connection();
   const { slug } = await params;
-  let test = getCanonicalTestBySlug(slug);
-  if (!test) {
-    test = await fetchCanonicalTestBySlug(slug);
-  }
+  const test = await fetchCanonicalTestBySlug(slug);
 
   if (!test) {
     notFound();

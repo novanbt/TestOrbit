@@ -32,7 +32,7 @@ import {
   BrandingSettings,
 } from "@/types/admin";
 import { MockTest, TestQuestion, TestBundle, Category } from "@/types";
-import { saveCanonicalTest, deleteCanonicalTest } from "@/lib/data/testService";
+import { saveCanonicalTest, deleteCanonicalTest, bulkDeleteCanonicalTests } from "@/lib/data/testService";
 import { saveCanonicalBundle, deleteCanonicalBundle } from "@/lib/data/bundleService";
 
 export interface ServerActionResponse<T = unknown> {
@@ -193,11 +193,7 @@ export async function bulkDeleteMockTestsAction(
       return { success: true, data: 0 };
     }
 
-    let count = 0;
-    for (const item of items) {
-      await deleteCanonicalTest(item.id, item.slug);
-      count++;
-    }
+    const count = await bulkDeleteCanonicalTests(items);
 
     await logAuditEvent("bulk_delete_tests", "test", "bulk", `Bulk deleted ${count} mock tests.`);
 
