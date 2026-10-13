@@ -8,8 +8,8 @@ import { usePathname } from "next/navigation";
 export default function Footer() {
   const pathname = usePathname();
 
-  // Hide footer on active CBT examination window
-  if (pathname?.endsWith("/take") || pathname?.includes("/take/")) {
+  // Hide footer on active CBT examination window and Admin Studio
+  if (pathname?.startsWith("/admin") || pathname?.endsWith("/take") || pathname?.includes("/take/")) {
     return null;
   }
 

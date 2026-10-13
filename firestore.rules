@@ -19,52 +19,77 @@ service cloud.firestore {
       // Students can only read and write their own profile and attempts
       allow read, write: if isOwner(userId);
 
-      // Matches all nested subcollections at any depth:
-      // e.g., /users/{userId}/enrolledTests/{testId}
-      //       /users/{userId}/attempts/{attemptId}
-      //       /users/{userId}/activity/{activityId}
       match /{allPaths=**} {
         allow read, write: if isOwner(userId);
       }
     }
 
     // -------------------------------------------------------------------------
-    // 2. Public Marketplace Catalog (Mock Tests, Test Series & Categories)
+    // 2. Public Marketplace Catalog & Content
     // -------------------------------------------------------------------------
-    // Anyone can read catalog content; client writes are disabled.
+    // Anyone can read catalog content; authenticated users/admins can manage.
     match /tests/{testId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAuthenticated();
     }
 
     match /mockTests/{testId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAuthenticated();
     }
 
     match /testSeries/{seriesId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAuthenticated();
     }
 
     match /testBundles/{bundleId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAuthenticated();
+    }
+
+    match /assignments/{assignmentId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
 
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAuthenticated();
     }
 
     match /questions/{questionId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAuthenticated();
     }
 
     match /test_questions/{slug} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isAuthenticated();
+    }
+
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /creatorProfiles/{creatorId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /siteSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /auditLogs/{logId} {
+      allow read, write: if isAuthenticated();
     }
 
     // -------------------------------------------------------------------------
