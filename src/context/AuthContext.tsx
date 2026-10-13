@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithPopup,
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -34,6 +35,11 @@ export interface SignInResult {
   error?: string;
 }
 
+export interface PasswordResetResult {
+  success: boolean;
+  error?: string;
+}
+
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
@@ -41,6 +47,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<SignInResult>;
   signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<PasswordResetResult>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -50,6 +57,7 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => ({ success: false, error: "Not initialized" }),
   signInWithGoogle: async () => ({ success: false, error: "Not initialized" }),
   signOut: async () => {},
+  sendPasswordReset: async () => ({ success: false, error: "Not initialized" }),
 });
 
 const STORAGE_KEY = "testorbit_user";
@@ -62,6 +70,8 @@ function formatAuthError(error: unknown): string {
         return "This email is already registered. Please sign in instead.";
       case "auth/invalid-email":
         return "Please enter a valid email address.";
+      case "auth/missing-email":
+        return "Please enter your email address.";
       case "auth/weak-password":
         return "Password must be at least 6 characters long.";
       case "auth/user-not-found":
@@ -309,6 +319,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const sendPasswordReset = async (
+    email: string
+  ): Promise<PasswordResetResult> => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !trimmedEmail.includes("@")) {
+      return {
+        success: false,
+        error: "Please enter a valid email address.",
+      };
+    }
+
+    if (!isFirebaseConfigured || !auth) {
+      // Mock fallback mode when Firebase client is not configured
+      return { success: true };
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, trimmedEmail);
+      return { success: true };
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      // Prevent account enumeration: treat user-not-found as generic success
+      if (code === "auth/user-not-found") {
+        return { success: true };
+      }
+      return {
+        success: false,
+        error: formatAuthError(err),
+      };
+    }
+  };
+
   const signOut = async () => {
     if (isFirebaseConfigured) {
       try {
@@ -324,7 +366,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signUp,
+        signIn,
+        signInWithGoogle,
+        signOut,
+        sendPasswordReset,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

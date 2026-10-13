@@ -258,6 +258,14 @@ export default function LoginPage() {
                   className="block w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
+              <div className="flex justify-end mt-1.5">
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors focus:outline-none focus:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             {/* Submit Button */}
