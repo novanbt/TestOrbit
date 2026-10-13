@@ -1,30 +1,90 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. User accounts, profiles, and student attempt histories
+
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Identifies authorized TestOrbit administrators
+    function isAdmin() {
+      return isAuthenticated() && (
+        ('email' in request.auth.token && (
+          request.auth.token.email == 'testorbit@ellipse.com' ||
+          request.auth.token.email.matches('.*@ellipse[.]com$') ||
+          request.auth.token.email.matches('.*@testorbit[.]in$')
+        )) ||
+        request.auth.uid == 'pKNYV2Dbs6WY967c7lRV4yy8P3m2' ||
+        (request.auth.token.admin == true)
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 1. User Profiles & Subcollections (Attempts, Enrolled Tests, Scorecards)
+    // -------------------------------------------------------------------------
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      match /{allSubcollections=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Students have full access to their own account; admins can read if needed
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId);
+
+      // Matches all nested subcollections at any depth:
+      // e.g., /users/{userId}/enrolledTests/{testId}
+      //       /users/{userId}/attempts/{attemptId}
+      //       /users/{userId}/activity/{activityId}
+      match /{allPaths=**} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId);
       }
     }
 
-    // 2. Canonical Mock Tests collection
+    // -------------------------------------------------------------------------
+    // 2. Public Marketplace Catalog (Mock Tests, Test Series & Categories)
+    // -------------------------------------------------------------------------
+    // Public learners can read/browse tests; only administrators can create, update, or delete.
     match /tests/{testId} {
-      // Public client website and learners can read mock tests
       allow read: if true;
-      // Authenticated administrators can create, update, or delete mock tests
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
 
-    // 3. Test Series and Categories
-    match /categories/{categoryId} {
+    match /mockTests/{testId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
     }
+
+    match /testSeries/{seriesId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /test_series/{seriesId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Questions collection (readable by authenticated students taking tests; editable by admins)
+    match /questions/{questionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. Default Deny Fallback
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
