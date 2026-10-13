@@ -18,7 +18,6 @@ import { MockTest } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
-import { EnrollmentModal } from "@/components/ui/EnrollmentModal";
 import { formatPriceInRupees, formatDuration } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
@@ -31,7 +30,6 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
   const { user } = useAuth();
   const baseTest = propTest || initialTest!;
   const [test, setTest] = useState<MockTest>(baseTest);
-  const [modalOpen, setModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -308,15 +306,7 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
                   </p>
                 </div>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-xs"
-                onClick={() => setModalOpen(true)}
-              >
-                Enrollment Details & Instructions
-              </Button>
-              <p className="text-[10px] text-center text-slate-400">
+              <p className="text-[10px] text-center text-slate-400 pt-1">
                 Instant CBT Simulation • Verified Solutions Included
               </p>
             </div>
@@ -363,16 +353,6 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
           </div>
         </div>
       </div>
-
-      {/* Modal */}
-      <EnrollmentModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={test.title}
-        priceInPaise={test.priceInPaise}
-        slug={test.slug}
-        itemType="test"
-      />
     </div>
   );
 }

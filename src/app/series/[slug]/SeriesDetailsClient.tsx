@@ -17,15 +17,15 @@ import { TestSeries } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
-import { EnrollmentModal } from "@/components/ui/EnrollmentModal";
 import { formatPriceInRupees } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 interface SeriesDetailsClientProps {
   series: TestSeries;
 }
 
 export default function SeriesDetailsClient({ series }: SeriesDetailsClientProps) {
-  const [modalOpen, setModalOpen] = useState(false);
+  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
 
   const handleShare = () => {
@@ -163,14 +163,41 @@ export default function SeriesDetailsClient({ series }: SeriesDetailsClientProps
 
             {/* Purchase / Get Access */}
             <div className="space-y-2">
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-full font-semibold"
-                onClick={() => setModalOpen(true)}
-              >
-                Enroll in Test Series
-              </Button>
+              {user ? (
+                <Link href={`/explore?category=${series.categoryId || ""}`} className="block">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="w-full font-semibold"
+                  >
+                    Browse Included Tests
+                  </Button>
+                </Link>
+              ) : (
+                <div className="space-y-2">
+                  <Link
+                    href={`/signup?redirect=${encodeURIComponent(`/series/${series.slug}`)}`}
+                    className="block"
+                  >
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="w-full font-semibold"
+                    >
+                      Sign Up to Enroll
+                    </Button>
+                  </Link>
+                  <p className="text-[11px] text-center text-slate-500">
+                    Already registered?{" "}
+                    <Link
+                      href={`/login?redirect=${encodeURIComponent(`/series/${series.slug}`)}`}
+                      className="text-indigo-600 font-semibold hover:underline"
+                    >
+                      Sign in here
+                    </Link>
+                  </p>
+                </div>
+              )}
               <p className="text-[10px] text-center text-slate-400">
                 Instant Digital Access • All {series.includedTestsCount} Tests Included
               </p>
@@ -214,14 +241,6 @@ export default function SeriesDetailsClient({ series }: SeriesDetailsClientProps
           </div>
         </div>
       </div>
-
-      <EnrollmentModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={series.title}
-        priceInPaise={series.priceInPaise}
-        itemType="series"
-      />
     </div>
   );
 }
