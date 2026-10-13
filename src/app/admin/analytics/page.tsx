@@ -27,14 +27,14 @@ export default function PlatformAnalyticsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StudioMetricCard
           title="Total Mock Tests"
-          value={metrics?.totalTests || 117}
+          value={metrics?.totalTests ?? 0}
           subtitle="Full curriculum coverage"
           icon={BookOpen}
           color="indigo"
         />
         <StudioMetricCard
           title="Active Test Series"
-          value={metrics?.publishedSeries || 4}
+          value={metrics?.publishedSeries ?? 0}
           subtitle="Multi-test packages"
           icon={Target}
           color="blue"
@@ -58,7 +58,7 @@ export default function PlatformAnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-3">
           <h2 className="text-sm font-bold text-slate-900">Catalogue Category Distribution</h2>
-          <p className="text-xs text-slate-500">Distribution of 117 tests across curriculums.</p>
+          <p className="text-xs text-slate-500">Curriculum coverage and syllabus allocation.</p>
           <div className="space-y-2 pt-2 text-xs">
             <div className="flex justify-between font-medium"><span>Competitive Exams (JEE, NEET, UPSC)</span><span className="font-bold text-slate-900">29 tests</span></div>
             <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-indigo-600 rounded-full" style={{ width: "25%" }} /></div>

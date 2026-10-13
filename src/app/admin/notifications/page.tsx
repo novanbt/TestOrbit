@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { StudioBadge } from "@/components/admin/StudioUI";
 import { useAdminStudio } from "@/context/AdminStudioContext";
+import { collection, getDocs } from "firebase/firestore";
+import { db, isFirebaseConfigured } from "@/lib/firebase/client";
+import { dismissNotificationAction, toggleNotificationReadAction } from "@/app/actions/adminStudioActions";
 
 interface NotificationItem {
   id: string;
@@ -69,20 +72,46 @@ export default function AdminNotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [filter, setFilter] = useState<"all" | "unread">("all");
 
+  const loadNotifications = async () => {
+    try {
+      if (isFirebaseConfigured && db) {
+        const snap = await getDocs(collection(db, "adminNotifications"));
+        if (!snap.empty) {
+          const list: NotificationItem[] = [];
+          snap.forEach((d) => list.push(d.data() as NotificationItem));
+          list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          setNotifications(list);
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    const unread = notifications.filter((n) => !n.read);
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    for (const item of unread) {
+      await toggleNotificationReadAction(item.id, true);
+    }
   };
 
-  const toggleRead = (id: string) => {
+  const toggleRead = async (id: string) => {
+    const target = notifications.find((n) => n.id === id);
+    const newRead = !target?.read;
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n))
+      prev.map((n) => (n.id === id ? { ...n, read: newRead } : n))
     );
+    await toggleNotificationReadAction(id, newRead);
   };
 
-  const deleteNotification = (id: string) => {
+  const deleteNotification = async (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    await dismissNotificationAction(id);
   };
 
   const filtered = notifications.filter((n) => (filter === "unread" ? !n.read : true));

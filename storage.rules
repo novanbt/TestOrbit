@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Public assets (test thumbnails, branding logos, banners, diagrams) are publicly readable
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // User profile images
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Default: Authenticated users can write within size limits (max 10MB)
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.resource.size < 10 * 1024 * 1024;
+    }
+  }
+}

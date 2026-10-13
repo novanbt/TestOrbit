@@ -106,7 +106,7 @@ export default function StudioDashboardPage() {
         <StudioMetricCard
           title="Published Mock Tests"
           value={metrics ? metrics.totalTests - metrics.draftTests : "..."}
-          subtitle={`Total catalogue count: ${metrics?.totalTests || 117}`}
+          subtitle={metrics ? `Total catalogue count: ${metrics.totalTests}` : "Loading..."}
           icon={BookOpen}
           trend="+100% Verified"
           color="indigo"
@@ -191,7 +191,7 @@ export default function StudioDashboardPage() {
                 href="/admin/tests"
                 className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
               >
-                <span>View all ({metrics?.totalTests || 117})</span>
+                <span>View all ({metrics ? metrics.totalTests : 0})</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>

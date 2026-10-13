@@ -1,9 +1,12 @@
 import React from "react";
 import { Metadata } from "next";
 import { Layers } from "lucide-react";
-import { getAllCanonicalPublishedBundles } from "@/lib/data/bundleService";
+import { connection } from "next/server";
+import { fetchCanonicalPublishedBundles } from "@/lib/data/bundleService";
 import { CATEGORIES } from "@/data/categories";
 import SeriesCatalogClient from "./SeriesCatalogClient";
+
+export const instant = false;
 
 export const metadata: Metadata = {
   title: "Curated Test Series & Exam Bundles — TestOrbit",
@@ -11,8 +14,9 @@ export const metadata: Metadata = {
     "Explore multi-test curated packages and chapter-wise test series. Single purchase unlocks all included mock tests with authentic marking keys and analytics.",
 };
 
-export default function SeriesCatalogPage() {
-  const publishedBundles = getAllCanonicalPublishedBundles();
+export default async function SeriesCatalogPage() {
+  await connection();
+  const publishedBundles = await fetchCanonicalPublishedBundles();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full space-y-8">

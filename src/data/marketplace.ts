@@ -1,4 +1,4 @@
-import { MockTest, TestSeries, FilterState, Category } from "@/types";
+import { MockTest, TestSeries, TestBundle, FilterState, Category } from "@/types";
 import { getAllTests } from "./tests";
 import { getAllTestSeries } from "./test-series";
 import { getCategories } from "./categories";
@@ -50,10 +50,13 @@ export function mapTestsToMarketplaceItems(tests: MockTest[]): MarketplaceItem[]
   }));
 }
 
-export function getAllMarketplaceItems(testsList?: MockTest[]): MarketplaceItem[] {
-  const tests: MarketplaceItem[] = mapTestsToMarketplaceItems(testsList || getAllTests());
+export function getAllMarketplaceItems(testsList?: MockTest[], seriesList?: TestBundle[]): MarketplaceItem[] {
+  const effectiveTests = testsList !== undefined ? testsList : getAllTests();
+  const effectiveSeries = seriesList !== undefined ? seriesList : getAllTestSeries();
 
-  const series: MarketplaceItem[] = getAllTestSeries().map((s) => ({
+  const tests: MarketplaceItem[] = mapTestsToMarketplaceItems(effectiveTests);
+
+  const series: MarketplaceItem[] = effectiveSeries.map((s) => ({
     id: s.id,
     slug: s.slug,
     type: "series",
@@ -74,8 +77,12 @@ export function getAllMarketplaceItems(testsList?: MockTest[]): MarketplaceItem[
   return [...tests, ...series];
 }
 
-export function filterMarketplaceItems(filters: FilterState, testsList?: MockTest[]): MarketplaceItem[] {
-  let items = getAllMarketplaceItems(testsList);
+export function filterMarketplaceItems(
+  filters: FilterState,
+  testsList?: MockTest[],
+  seriesList?: TestBundle[]
+): MarketplaceItem[] {
+  let items = getAllMarketplaceItems(testsList, seriesList);
 
   // 1. Product Type
   if (filters.productType === "tests") {

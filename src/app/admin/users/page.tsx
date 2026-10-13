@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
-import { Shield, Plus, UserCheck, ShieldAlert, Check } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Shield, Plus, UserCheck, ShieldAlert, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { StudioBadge } from "@/components/admin/StudioUI";
 import { AdminUser, AdminRole } from "@/types/admin";
+import { saveAdminUserAction, deleteAdminUserAction } from "@/app/actions/adminStudioActions";
+import { collection, getDocs } from "firebase/firestore";
+import { db, isFirebaseConfigured } from "@/lib/firebase/client";
 
 const INITIAL_ADMINS: AdminUser[] = [
   {
@@ -38,12 +41,43 @@ const INITIAL_ADMINS: AdminUser[] = [
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>(INITIAL_ADMINS);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
   const [newRole, setNewRole] = useState<AdminRole>("content_manager");
+  const [feedback, setFeedback] = useState<string | null>(null);
 
-  const handleAddUser = (e: React.FormEvent) => {
+  const loadAdminUsers = async () => {
+    setLoading(true);
+    try {
+      if (isFirebaseConfigured && db) {
+        const snap = await getDocs(collection(db, "adminUsers"));
+        if (!snap.empty) {
+          const list: AdminUser[] = [];
+          snap.forEach((d) => list.push(d.data() as AdminUser));
+          // ensure super admin is present
+          if (!list.some((u) => u.email === "testorbit@ellipse.com")) {
+            list.unshift(INITIAL_ADMINS[0]);
+          }
+          setUsers(list);
+          setLoading(false);
+          return;
+        }
+      }
+      setUsers(INITIAL_ADMINS);
+    } catch {
+      setUsers(INITIAL_ADMINS);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAdminUsers();
+  }, []);
+
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail.trim() || !newName.trim()) return;
 
@@ -56,10 +90,31 @@ export default function AdminUsersPage() {
       createdAt: new Date().toISOString(),
       lastLogin: "Never",
     };
-    setUsers([...users, newUser]);
-    setModalOpen(false);
-    setNewEmail("");
-    setNewName("");
+
+    const res = await saveAdminUserAction(newUser);
+    if (res.success) {
+      setUsers((prev) => [...prev, newUser]);
+      setFeedback(`Admin user "${newUser.name}" provisioned successfully.`);
+      setModalOpen(false);
+      setNewEmail("");
+      setNewName("");
+      setTimeout(() => setFeedback(null), 3000);
+    }
+  };
+
+  const handleDeleteUser = async (user: AdminUser) => {
+    if (user.email === "testorbit@ellipse.com") {
+      alert("The primary Super Administrator account cannot be removed.");
+      return;
+    }
+    if (!window.confirm(`Remove admin account for "${user.name}" (${user.email})?`)) return;
+
+    const res = await deleteAdminUserAction(user.id);
+    if (res.success) {
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      setFeedback(`Admin account "${user.email}" removed.`);
+      setTimeout(() => setFeedback(null), 3000);
+    }
   };
 
   return (
@@ -80,6 +135,13 @@ export default function AdminUsersPage() {
         </Button>
       </div>
 
+      {feedback && (
+        <div className="p-3 rounded-xl text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-between">
+          <span>{feedback}</span>
+          <button onClick={() => setFeedback(null)} className="font-bold">✕</button>
+        </div>
+      )}
+
       <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
@@ -89,6 +151,7 @@ export default function AdminUsersPage() {
                 <th className="py-3 px-4">Role Permission</th>
                 <th className="py-3 px-4">Account Status</th>
                 <th className="py-3 px-4">Last Activity</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -109,6 +172,17 @@ export default function AdminUsersPage() {
                     </StudioBadge>
                   </td>
                   <td className="py-3 px-4 text-slate-400">{u.lastLogin || "—"}</td>
+                  <td className="py-3 px-4 text-right">
+                    {u.email !== "testorbit@ellipse.com" && (
+                      <button
+                        onClick={() => handleDeleteUser(u)}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition"
+                        title="Remove user"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

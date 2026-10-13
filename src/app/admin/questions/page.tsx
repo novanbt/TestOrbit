@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { StudioBadge, StudioEmptyState } from "@/components/admin/StudioUI";
 import { getAllQuestionBankItems } from "@/lib/admin/adminDataService";
-import { saveQuestionItemAction } from "@/app/actions/adminStudioActions";
+import { saveQuestionItemAction, deleteQuestionItemAction } from "@/app/actions/adminStudioActions";
 import { QuestionBankItem } from "@/types/admin";
 
 export default function QuestionBankPage() {
@@ -172,6 +172,17 @@ export default function QuestionBankPage() {
     showFeedback("success", `Exported ${questions.length} questions to JSON.`);
   };
 
+  const handleDeleteQuestion = async (q: QuestionBankItem) => {
+    if (!window.confirm(`Delete question "${q.text.slice(0, 30)}..."?`)) return;
+    const res = await deleteQuestionItemAction(q.id);
+    if (res.success) {
+      setQuestions((prev) => prev.filter((item) => item.id !== q.id));
+      showFeedback("success", "Question removed successfully.");
+    } else {
+      showFeedback("error", res.error || "Failed to delete question.");
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Workspace Header */}
@@ -298,6 +309,15 @@ export default function QuestionBankPage() {
                   >
                     <Edit2 className="w-3.5 h-3.5 mr-1" />
                     <span>Edit</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteQuestion(q)}
+                    className="h-7 px-2 text-xs text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                    title="Delete question"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>

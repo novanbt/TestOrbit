@@ -7,10 +7,13 @@ import { SearchBar } from "@/components/marketplace/SearchBar";
 import { CategoryCard } from "@/components/marketplace/CategoryCard";
 import { TestSeriesCard } from "@/components/marketplace/TestSeriesCard";
 import { FeaturedTestsClient } from "@/components/marketplace/FeaturedTestsClient";
-import { getCategories } from "@/data/categories";
+import { fetchCanonicalCategories } from "@/lib/data/categoryService";
 import { fetchCanonicalFeaturedTests } from "@/lib/data/testService";
-import { getAllCanonicalPublishedBundles } from "@/lib/data/bundleService";
+import { fetchCanonicalPublishedBundles } from "@/lib/data/bundleService";
+import { getSiteCMSConfig } from "@/lib/admin/adminDataService";
 import { connection } from "next/server";
+
+export const instant = false;
 
 async function FeaturedTestsStream() {
   await connection();
@@ -18,17 +21,25 @@ async function FeaturedTestsStream() {
   return <FeaturedTestsClient initialTests={featuredTests} />;
 }
 
-export default function HomePage() {
-  const categories = getCategories();
-  const testSeries = getAllCanonicalPublishedBundles().slice(0, 3);
+export default async function HomePage() {
+  await connection();
+  const [cmsConfig, categories, allSeries] = await Promise.all([
+    getSiteCMSConfig(),
+    fetchCanonicalCategories(),
+    fetchCanonicalPublishedBundles(),
+  ]);
 
-
-
-
-
+  const testSeries = allSeries.slice(0, 3);
 
   return (
     <div className="flex flex-col w-full pb-16">
+      {/* Top Announcement Banner */}
+      {cmsConfig.announcementBanner?.active && cmsConfig.announcementBanner.text && (
+        <div className="w-full bg-linear-to-r from-indigo-900 via-indigo-800 to-blue-900 text-white py-2.5 px-4 text-center text-xs font-medium tracking-wide shadow-xs flex items-center justify-center gap-2 border-b border-indigo-700/50">
+          <span>{cmsConfig.announcementBanner.text}</span>
+        </div>
+      )}
+
       {/* 1. Hero Section */}
       <section className="relative pt-16 pb-14 md:pt-24 md:pb-20 border-b border-slate-100 bg-linear-to-b from-slate-50/70 via-white to-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -40,12 +51,13 @@ export default function HomePage() {
 
           {/* Heading */}
           <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight mb-5 max-w-3xl mx-auto">
-            Your next goal starts with a test.
+            {cmsConfig.heroTitle || "Your next goal starts with a test."}
           </h1>
 
           {/* Supporting Text */}
           <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto mb-8 leading-relaxed font-normal">
-            Discover mock tests across academics, competitive exams, and professional skills. Practice smarter and understand your preparation.
+            {cmsConfig.heroSubtitle ||
+              "Discover mock tests across academics, competitive exams, and professional skills. Practice smarter and understand your preparation."}
           </p>
 
           {/* Prominent Search Bar */}
@@ -121,7 +133,6 @@ export default function HomePage() {
           >
             <FeaturedTestsStream />
           </Suspense>
-
         </div>
       </section>
 
@@ -160,7 +171,36 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* 5. Student Call to Action Banner */}
+      {/* 5. FAQs Section from CMS */}
+      {cmsConfig.faqs && cmsConfig.faqs.length > 0 && (
+        <section className="py-14 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 w-full border-t border-slate-100">
+          <div className="text-center mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Common questions answered about test simulations, scoring, and analytics.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {cmsConfig.faqs.map((faq) => (
+              <div
+                key={faq.id}
+                className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-2"
+              >
+                <h3 className="text-sm font-bold text-slate-900 leading-snug">
+                  {faq.question}
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {faq.answer}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 6. Student Call to Action Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-6">
         <div className="p-8 sm:p-10 bg-linear-to-r from-indigo-900 via-indigo-800 to-blue-900 rounded-2xl text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
           <div className="space-y-1.5">

@@ -13,6 +13,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "@/lib/firebase/client";
+import { ensureAdminAuthenticated } from "@/lib/firebase/serverAuth";
 import {
   verifyAdminCredentials,
   createAdminSession,
@@ -34,6 +35,8 @@ import {
 import { MockTest, TestQuestion, TestBundle, Category } from "@/types";
 import { saveCanonicalTest, deleteCanonicalTest, bulkDeleteCanonicalTests } from "@/lib/data/testService";
 import { saveCanonicalBundle, deleteCanonicalBundle } from "@/lib/data/bundleService";
+import { saveCanonicalCategory, deleteCanonicalCategory } from "@/lib/data/categoryService";
+import { saveCanonicalSubject, deleteCanonicalSubject, SubjectTaxonomy } from "@/lib/data/taxonomyService";
 
 export interface ServerActionResponse<T = unknown> {
   success: boolean;
@@ -116,6 +119,7 @@ async function logAuditEvent(
     };
 
     if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
       await setDoc(doc(db, "auditLogs", logItem.id), logItem).catch(() => {});
     }
   } catch {}
@@ -137,6 +141,7 @@ export async function saveMockTestAction(test: MockTest): Promise<ServerActionRe
       return { success: false, error: "Test title and slug are mandatory." };
     }
 
+    await ensureAdminAuthenticated();
     const saved = await saveCanonicalTest(test);
     await logAuditEvent("save_test", "test", saved.id, `Saved mock test "${saved.title}" (${saved.slug})`);
 
@@ -163,6 +168,7 @@ export async function deleteMockTestAction(id: string, slug?: string): Promise<S
       return { success: false, error: "Unauthorized: Administrator session required." };
     }
 
+    await ensureAdminAuthenticated();
     await deleteCanonicalTest(id, slug);
     await logAuditEvent("delete_test", "test", id, `Deleted mock test ID ${id} (${slug || ""})`);
 
@@ -193,6 +199,7 @@ export async function bulkDeleteMockTestsAction(
       return { success: true, data: 0 };
     }
 
+    await ensureAdminAuthenticated();
     const count = await bulkDeleteCanonicalTests(items);
 
     await logAuditEvent("bulk_delete_tests", "test", "bulk", `Bulk deleted ${count} mock tests.`);
@@ -230,6 +237,7 @@ export async function saveQuestionItemAction(
     question.updatedAt = new Date().toISOString();
 
     if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
       await setDoc(doc(db, "questions", question.id), question);
     }
 
@@ -237,6 +245,28 @@ export async function saveQuestionItemAction(
     revalidatePath("/admin/questions");
 
     return { success: true, data: question };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function deleteQuestionItemAction(id: string): Promise<ServerActionResponse<void>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
+      await deleteDoc(doc(db, "questions", id));
+    }
+
+    await logAuditEvent("delete_question", "question", id, `Deleted question ID ${id}`);
+    revalidatePath("/admin/questions");
+
+    return { success: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return { success: false, error: msg };
@@ -256,6 +286,7 @@ export async function saveQuestionsForTestAction(
     const clean = testSlug.trim().toLowerCase();
 
     if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
       const docRef = doc(db, "test_questions", clean);
       await setDoc(docRef, {
         slug: clean,
@@ -290,6 +321,7 @@ export async function saveSeriesAction(series: TestBundle): Promise<ServerAction
       return { success: false, error: "Unauthorized: Administrator session required." };
     }
 
+    await ensureAdminAuthenticated();
     const saved = await saveCanonicalBundle(series);
     await logAuditEvent("save_series", "series", saved.id, `Saved test series "${saved.title}" (${saved.slug})`);
 
@@ -315,6 +347,7 @@ export async function deleteSeriesAction(id: string): Promise<ServerActionRespon
       return { success: false, error: "Unauthorized: Administrator session required." };
     }
 
+    await ensureAdminAuthenticated();
     await deleteCanonicalBundle(id);
     await logAuditEvent("delete_series", "series", id, `Deleted test series ID ${id}`);
 
@@ -349,6 +382,7 @@ export async function saveAssignmentAction(assignment: Assignment): Promise<Serv
     assignment.updatedAt = new Date().toISOString();
 
     if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
       await setDoc(doc(db, "assignments", assignment.id), assignment);
     }
 
@@ -362,7 +396,7 @@ export async function saveAssignmentAction(assignment: Assignment): Promise<Serv
   }
 }
 
-export async function saveCategoryAction(category: Category): Promise<ServerActionResponse<Category>> {
+export async function deleteAssignmentAction(id: string): Promise<ServerActionResponse<void>> {
   try {
     const session = await getAdminSession();
     if (!session) {
@@ -370,15 +404,106 @@ export async function saveCategoryAction(category: Category): Promise<ServerActi
     }
 
     if (isFirebaseConfigured && db) {
-      await setDoc(doc(db, "categories", category.id), category);
+      await ensureAdminAuthenticated();
+      await deleteDoc(doc(db, "assignments", id));
     }
 
-    await logAuditEvent("save_category", "category", category.id, `Saved category "${category.name}"`);
-    revalidatePath("/");
-    revalidatePath("/explore");
-    revalidatePath("/admin/categories");
+    await logAuditEvent("delete_assignment", "series", id, `Deleted assignment ID ${id}`);
+    revalidatePath("/admin/assignments");
 
-    return { success: true, data: category };
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function saveCategoryAction(category: Category): Promise<ServerActionResponse<Category>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    const saved = await saveCanonicalCategory(category);
+    await logAuditEvent("save_category", "category", saved.id, `Saved category "${saved.name}"`);
+
+    try {
+      revalidatePath("/");
+      revalidatePath("/explore");
+      revalidatePath("/admin/categories");
+    } catch {}
+
+    return { success: true, data: saved };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function deleteCategoryAction(id: string, slug?: string): Promise<ServerActionResponse<void>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    await deleteCanonicalCategory(id, slug);
+    await logAuditEvent("delete_category", "category", id, `Deleted category ID ${id}`);
+
+    try {
+      revalidatePath("/");
+      revalidatePath("/explore");
+      revalidatePath("/admin/categories");
+    } catch {}
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function saveSubjectAction(subject: SubjectTaxonomy): Promise<ServerActionResponse<SubjectTaxonomy>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    const saved = await saveCanonicalSubject(subject);
+    await logAuditEvent("save_subject", "setting", saved.id, `Saved subject "${saved.name}"`);
+
+    try {
+      revalidatePath("/admin/taxonomy");
+    } catch {}
+
+    return { success: true, data: saved };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function deleteSubjectAction(id: string): Promise<ServerActionResponse<void>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    await deleteCanonicalSubject(id);
+    await logAuditEvent("delete_subject", "setting", id, `Deleted subject ID ${id}`);
+
+    try {
+      revalidatePath("/admin/taxonomy");
+    } catch {}
+
+    return { success: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return { success: false, error: msg };
@@ -402,6 +527,7 @@ export async function saveCouponAction(coupon: Coupon): Promise<ServerActionResp
     }
 
     if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
       await setDoc(doc(db, "coupons", coupon.id), coupon);
     }
 
@@ -409,6 +535,28 @@ export async function saveCouponAction(coupon: Coupon): Promise<ServerActionResp
     revalidatePath("/admin/coupons");
 
     return { success: true, data: coupon };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function deleteCouponAction(id: string): Promise<ServerActionResponse<void>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
+      await deleteDoc(doc(db, "coupons", id));
+    }
+
+    await logAuditEvent("delete_coupon", "order", id, `Deleted coupon ID ${id}`);
+    revalidatePath("/admin/coupons");
+
+    return { success: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return { success: false, error: msg };
@@ -428,6 +576,7 @@ export async function processRefundAction(
     const refundId = "ref_" + Date.now().toString(36);
 
     if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
       const orderRef = doc(db, "orders", orderId);
       await setDoc(
         orderRef,
@@ -464,12 +613,14 @@ export async function saveSiteCMSAction(config: SiteCMSConfig): Promise<ServerAc
     }
 
     if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
       await setDoc(doc(db, "siteSettings", "homepage"), config, { merge: true });
     }
 
     await logAuditEvent("update_cms", "setting", "homepage", "Updated public homepage CMS configuration.");
     revalidatePath("/");
     revalidatePath("/admin/website/homepage");
+    revalidatePath("/admin/website/announcements");
 
     return { success: true, data: config };
   } catch (err: unknown) {
@@ -493,6 +644,7 @@ export async function savePlatformSettingsAction(
     }
 
     if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
       await setDoc(doc(db, "siteSettings", "platform"), settings, { merge: true });
     }
 
@@ -516,6 +668,7 @@ export async function saveBrandingSettingsAction(
     }
 
     if (isFirebaseConfigured && db) {
+      await ensureAdminAuthenticated();
       await setDoc(doc(db, "siteSettings", "branding"), branding, { merge: true });
     }
 
@@ -529,3 +682,94 @@ export async function saveBrandingSettingsAction(
   }
 }
 
+/**
+ * -------------------------------------------------------------
+ * 10. ADMIN USERS & NOTIFICATIONS ACTIONS
+ * -------------------------------------------------------------
+ */
+export async function saveAdminUserAction(adminUser: AdminUser): Promise<ServerActionResponse<AdminUser>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    if (!adminUser.id) {
+      adminUser.id = "admin-" + Date.now().toString(36);
+    }
+    if (isFirebaseConfigured && db) {
+      await setDoc(doc(db, "adminUsers", adminUser.id), adminUser, { merge: true });
+    }
+
+    await logAuditEvent("save_admin_user", "user", adminUser.id, `Saved admin user "${adminUser.email}" (${adminUser.role})`);
+    revalidatePath("/admin/users");
+
+    return { success: true, data: adminUser };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function deleteAdminUserAction(id: string): Promise<ServerActionResponse<void>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    if (isFirebaseConfigured && db) {
+      await deleteDoc(doc(db, "adminUsers", id));
+    }
+
+    await logAuditEvent("delete_admin_user", "user", id, `Deleted admin user ID ${id}`);
+    revalidatePath("/admin/users");
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function dismissNotificationAction(id: string): Promise<ServerActionResponse<void>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    if (isFirebaseConfigured && db) {
+      await deleteDoc(doc(db, "adminNotifications", id));
+    }
+    revalidatePath("/admin/notifications");
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function toggleNotificationReadAction(id: string, read: boolean): Promise<ServerActionResponse<void>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    if (isFirebaseConfigured && db) {
+      await setDoc(doc(db, "adminNotifications", id), { read }, { merge: true });
+    }
+    revalidatePath("/admin/notifications");
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}

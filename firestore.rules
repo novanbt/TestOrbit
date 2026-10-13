@@ -12,20 +12,36 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // -------------------------------------------------------------------------
-    // 1. User Profiles & Subcollections (Attempts, Enrolled Tests, Scorecards)
-    // -------------------------------------------------------------------------
-    match /users/{userId} {
-      // Students can only read and write their own profile and attempts
-      allow read, write: if isOwner(userId);
-
-      match /{allPaths=**} {
-        allow read, write: if isOwner(userId);
-      }
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == "testorbit@ellipse.com" ||
+        request.auth.token.admin == true
+      );
     }
 
     // -------------------------------------------------------------------------
-    // 2. Public Marketplace Catalog & Content
+    // 1. User Profiles & Subcollections (Attempts, Enrolled Tests, Orders)
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      // Students can read/write their own profile; admins have management access
+      allow read, write: if isOwner(userId) || isAdmin();
+
+      match /{allPaths=**} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // Collection Group Access for Administrative Aggregation & Analytics
+    match /{path=**}/attempts/{attemptId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /{path=**}/orders/{orderId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Public Marketplace Catalog & Educational Content
     // -------------------------------------------------------------------------
     // Anyone can read catalog content; authenticated users/admins can manage.
     match /tests/{testId} {
@@ -54,6 +70,11 @@ service cloud.firestore {
     }
 
     match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /taxonomy/{taxonomyId} {
       allow read: if true;
       allow write: if isAuthenticated();
     }
@@ -90,6 +111,25 @@ service cloud.firestore {
 
     match /auditLogs/{logId} {
       allow read, write: if isAuthenticated();
+    }
+
+    match /adminNotifications/{notifId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /adminUsers/{adminId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    match /questionReports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAdmin();
     }
 
     // -------------------------------------------------------------------------

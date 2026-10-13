@@ -8,6 +8,7 @@ let isSigningIn = false;
  * to satisfy Firestore security rules (allow write: if isAuthenticated()).
  */
 export async function ensureAdminAuthenticated(): Promise<boolean> {
+  if (typeof window !== "undefined") return false;
   if (!isFirebaseConfigured || !auth) return false;
   if (auth.currentUser) return true;
   if (isSigningIn) return false;

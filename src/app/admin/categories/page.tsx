@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FolderTree, Plus, Edit2, Trash2, CheckCircle, Tag, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { CATEGORIES } from "@/data/categories";
-import { saveCategoryAction } from "@/app/actions/adminStudioActions";
+import { fetchCanonicalCategories } from "@/lib/data/categoryService";
+import { saveCategoryAction, deleteCategoryAction } from "@/app/actions/adminStudioActions";
 import { Category } from "@/types";
 
 export default function CategoriesAdminPage() {
-  const [categories, setCategories] = useState<Category[]>(CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
 
@@ -18,6 +19,22 @@ export default function CategoriesAdminPage() {
   const [iconName, setIconName] = useState("Target");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  const loadCategories = async () => {
+    setLoading(true);
+    try {
+      const list = await fetchCanonicalCategories();
+      setCategories(list);
+    } catch {
+      // fallback
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   const openCreateModal = () => {
     setEditingCat(null);
@@ -35,6 +52,16 @@ export default function CategoriesAdminPage() {
     setDescription(cat.description);
     setIconName(cat.iconName);
     setModalOpen(true);
+  };
+
+  const handleDelete = async (cat: Category) => {
+    if (!window.confirm(`Delete category "${cat.name}"?`)) return;
+    const res = await deleteCategoryAction(cat.id, cat.slug);
+    if (res.success) {
+      setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+      setFeedback(`Deleted category "${cat.name}".`);
+      setTimeout(() => setFeedback(null), 3000);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -91,32 +118,53 @@ export default function CategoriesAdminPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {categories.map((cat) => (
-          <div
-            key={cat.id}
-            className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-3 flex flex-col justify-between"
-          >
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] text-slate-400">/{cat.slug}</span>
-                <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
-                  {cat.testCount || 0} Tests
-                </span>
+      {loading ? (
+        <div className="py-20 text-center space-y-3 bg-white border border-slate-200/80 rounded-2xl">
+          <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-slate-400">Loading categories...</p>
+        </div>
+      ) : categories.length === 0 ? (
+        <div className="py-16 text-center bg-white border border-slate-200/80 rounded-2xl p-6">
+          <FolderTree className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+          <h3 className="text-sm font-bold text-slate-900">No categories found</h3>
+          <p className="text-xs text-slate-500 mt-1">Create your first taxonomy category above.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {categories.map((cat) => (
+            <div
+              key={cat.id}
+              className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-3 flex flex-col justify-between"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-slate-400">/{cat.slug}</span>
+                  <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
+                    {cat.testCount || 0} Tests
+                  </span>
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">{cat.name}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">{cat.description}</p>
               </div>
-              <h3 className="text-sm font-bold text-slate-900">{cat.name}</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">{cat.description}</p>
-            </div>
 
-            <div className="pt-3 border-t border-slate-100 flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => openEditModal(cat)} className="h-7 text-xs">
-                <Edit2 className="w-3 h-3 mr-1" />
-                <span>Edit Category</span>
-              </Button>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => openEditModal(cat)} className="h-7 text-xs">
+                  <Edit2 className="w-3 h-3 mr-1" />
+                  <span>Edit</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDelete(cat)}
+                  className="h-7 text-xs text-rose-600 hover:bg-rose-50 hover:border-rose-200"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in">

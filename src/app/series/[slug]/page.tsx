@@ -1,23 +1,19 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { getCanonicalBundleBySlug, getAllCanonicalPublishedBundles } from "@/lib/data/bundleService";
+import { connection } from "next/server";
+import { fetchCanonicalBundleBySlug } from "@/lib/data/bundleService";
 import SeriesDetailsClient from "./SeriesDetailsClient";
+
+export const instant = false;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  const bundles = getAllCanonicalPublishedBundles();
-  return bundles.map((b) => ({
-    slug: b.slug,
-  }));
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const series = getCanonicalBundleBySlug(slug);
+  const series = await fetchCanonicalBundleBySlug(slug);
 
   if (!series) {
     return {
@@ -32,8 +28,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function SeriesDetailsPage({ params }: PageProps) {
+  await connection();
   const { slug } = await params;
-  const series = getCanonicalBundleBySlug(slug);
+  const series = await fetchCanonicalBundleBySlug(slug);
 
   if (!series) {
     notFound();

@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/Button";
 import { StudioBadge, StudioEmptyState } from "@/components/admin/StudioUI";
 import { getAllAssignments } from "@/lib/admin/adminDataService";
 import { fetchCanonicalTests } from "@/lib/data/testService";
-import { saveAssignmentAction } from "@/app/actions/adminStudioActions";
+import { saveAssignmentAction, deleteAssignmentAction } from "@/app/actions/adminStudioActions";
 import { Assignment } from "@/types/admin";
 import { MockTest } from "@/types";
 import { CATEGORIES } from "@/data/categories";
@@ -128,6 +128,17 @@ export default function AssignmentsAdminPage() {
     setSaving(false);
   };
 
+  const handleDeleteAssignment = async (asg: Assignment) => {
+    if (!window.confirm(`Delete assignment "${asg.title}"?`)) return;
+    const res = await deleteAssignmentAction(asg.id);
+    if (res.success) {
+      setAssignments((prev) => prev.filter((item) => item.id !== asg.id));
+      showFeedback("success", `Deleted assignment "${asg.title}".`);
+    } else {
+      showFeedback("error", res.error || "Failed to delete assignment.");
+    }
+  };
+
   const filtered = assignments.filter((a) =>
     a.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -211,7 +222,7 @@ export default function AssignmentsAdminPage() {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -220,6 +231,15 @@ export default function AssignmentsAdminPage() {
                 >
                   <Edit2 className="w-3 h-3 mr-1" />
                   <span>Configure</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteAssignment(asg)}
+                  className="h-7 text-xs text-rose-600 hover:bg-rose-50 hover:border-rose-200"
+                  title="Delete assignment"
+                >
+                  <Trash2 className="w-3 h-3" />
                 </Button>
               </div>
             </div>

@@ -5,7 +5,7 @@ import { Percent, Plus, Tag, Calendar, CheckCircle, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/Button";
 import { StudioBadge, StudioEmptyState } from "@/components/admin/StudioUI";
 import { getAllCoupons } from "@/lib/admin/adminDataService";
-import { saveCouponAction } from "@/app/actions/adminStudioActions";
+import { saveCouponAction, deleteCouponAction } from "@/app/actions/adminStudioActions";
 import { Coupon } from "@/types/admin";
 
 export default function CouponsAdminPage() {
@@ -63,6 +63,16 @@ export default function CouponsAdminPage() {
       setTimeout(() => setFeedback(null), 3000);
     }
     setSaving(false);
+  };
+
+  const handleDeleteCoupon = async (c: Coupon) => {
+    if (!window.confirm(`Delete coupon "${c.code}"?`)) return;
+    const res = await deleteCouponAction(c.id);
+    if (res.success) {
+      setCoupons((prev) => prev.filter((item) => item.id !== c.id));
+      setFeedback(`Coupon "${c.code}" deleted successfully.`);
+      setTimeout(() => setFeedback(null), 3000);
+    }
   };
 
   return (
@@ -136,6 +146,16 @@ export default function CouponsAdminPage() {
                 <p className="text-[11px] text-slate-400">
                   Valid until {new Date(c.validUntil).toLocaleDateString()}
                 </p>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => handleDeleteCoupon(c)}
+                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                  title="Delete coupon"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           ))

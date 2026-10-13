@@ -1,4 +1,18 @@
 import { TestBundle } from "@/types";
+import {
+  getAllCanonicalBundles,
+  getAllCanonicalPublishedBundles,
+  getCanonicalBundleBySlug,
+  getCanonicalBundleById,
+  fetchCanonicalBundles,
+  fetchCanonicalPublishedBundles,
+  fetchCanonicalBundleBySlug,
+  resolveBundleTests,
+  calculateBundlePricingMetrics,
+  saveCanonicalBundle,
+  deleteCanonicalBundle,
+  bulkDeleteCanonicalBundles,
+} from "@/lib/data/bundleService";
 
 export const TEST_SERIES: TestBundle[] = [
   {
@@ -284,23 +298,25 @@ export const TEST_SERIES: TestBundle[] = [
 ];
 
 export function getAllTestSeries(): TestBundle[] {
-  return TEST_SERIES.filter((s) => s.published && s.status !== "archived");
+  return getAllCanonicalPublishedBundles();
 }
 
 export function getTestSeriesBySlug(slug: string): TestBundle | undefined {
-  return TEST_SERIES.find(
-    (s) => s.slug.toLowerCase() === slug.toLowerCase() && s.published && s.status !== "archived"
-  );
+  return getCanonicalBundleBySlug(slug);
 }
 
 // Re-export canonical bundle service methods
 export {
   getAllCanonicalBundles,
   getAllCanonicalPublishedBundles,
+  fetchCanonicalBundles,
+  fetchCanonicalPublishedBundles,
+  fetchCanonicalBundleBySlug,
   getCanonicalBundleBySlug,
   getCanonicalBundleById,
   resolveBundleTests,
   calculateBundlePricingMetrics,
   saveCanonicalBundle,
   deleteCanonicalBundle,
+  bulkDeleteCanonicalBundles,
 } from "@/lib/data/bundleService";

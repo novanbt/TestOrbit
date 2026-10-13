@@ -106,8 +106,8 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
   );
 
   const filteredItems = useMemo(
-    () => filterMarketplaceItems(filterState, allTests),
-    [filterState, allTests]
+    () => filterMarketplaceItems(filterState, allTests, allSeries),
+    [filterState, allTests, allSeries]
   );
 
   const activeFiltersCount = useMemo(() => {
