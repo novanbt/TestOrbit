@@ -348,13 +348,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const continueUrl =
         typeof window !== "undefined"
-          ? `${window.location.origin}/reset-password`
-          : "https://testorbit.vercel.app/reset-password";
+          ? `${window.location.origin}/login`
+          : "https://testorbit.vercel.app/login";
 
       try {
         await sendPasswordResetEmail(auth, trimmedEmail, {
           url: continueUrl,
-          handleCodeInApp: true,
+          handleCodeInApp: false,
         });
       } catch (acsErr: unknown) {
         const acsCode = (acsErr as { code?: string })?.code;
