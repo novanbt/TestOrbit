@@ -7,6 +7,8 @@ import {
   signOut as firebaseSignOut,
   sendEmailVerification,
   sendPasswordResetEmail,
+  verifyPasswordResetCode,
+  confirmPasswordReset,
   signInWithPopup,
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -48,6 +50,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<PasswordResetResult>;
+  verifyResetCode: (code: string) => Promise<{ success: boolean; email?: string; error?: string }>;
+  confirmReset: (code: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -58,6 +62,8 @@ const AuthContext = createContext<AuthContextType>({
   signInWithGoogle: async () => ({ success: false, error: "Not initialized" }),
   signOut: async () => {},
   sendPasswordReset: async () => ({ success: false, error: "Not initialized" }),
+  verifyResetCode: async () => ({ success: false, error: "Not initialized" }),
+  confirmReset: async () => ({ success: false, error: "Not initialized" }),
 });
 
 const STORAGE_KEY = "testorbit_user";
@@ -74,6 +80,10 @@ function formatAuthError(error: unknown): string {
         return "Please enter your email address.";
       case "auth/weak-password":
         return "Password must be at least 6 characters long.";
+      case "auth/expired-action-code":
+        return "This password reset link has expired. Please request a new one.";
+      case "auth/invalid-action-code":
+        return "This password reset link is invalid or has already been used. Please request a new one.";
       case "auth/user-not-found":
       case "auth/wrong-password":
       case "auth/invalid-credential":
@@ -336,7 +346,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      await sendPasswordResetEmail(auth, trimmedEmail);
+      const continueUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/reset-password`
+          : "https://testorbit.vercel.app/reset-password";
+
+      try {
+        await sendPasswordResetEmail(auth, trimmedEmail, {
+          url: continueUrl,
+          handleCodeInApp: false,
+        });
+      } catch (acsErr: unknown) {
+        const acsCode = (acsErr as { code?: string })?.code;
+        if (acsCode === "auth/unauthorized-continue-uri") {
+          // If domain isn't authorized for continue URL yet, fallback cleanly
+          await sendPasswordResetEmail(auth, trimmedEmail);
+        } else {
+          throw acsErr;
+        }
+      }
       return { success: true };
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
@@ -348,6 +376,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         success: false,
         error: formatAuthError(err),
       };
+    }
+  };
+
+  const verifyResetCode = async (
+    code: string
+  ): Promise<{ success: boolean; email?: string; error?: string }> => {
+    const trimmed = code?.trim();
+    if (!trimmed) {
+      return { success: false, error: "Missing or invalid password reset code." };
+    }
+    if (!isFirebaseConfigured || !auth) {
+      return { success: true, email: "student@example.com" };
+    }
+    try {
+      const email = await verifyPasswordResetCode(auth, trimmed);
+      return { success: true, email };
+    } catch (err: unknown) {
+      return { success: false, error: formatAuthError(err) };
+    }
+  };
+
+  const confirmReset = async (
+    code: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const trimmedCode = code?.trim();
+    if (!trimmedCode) {
+      return { success: false, error: "Missing or invalid password reset code." };
+    }
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: "Password must be at least 6 characters long." };
+    }
+    if (!isFirebaseConfigured || !auth) {
+      return { success: true };
+    }
+    try {
+      await confirmPasswordReset(auth, trimmedCode, newPassword);
+      return { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: formatAuthError(err) };
     }
   };
 
@@ -375,6 +443,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGoogle,
         signOut,
         sendPasswordReset,
+        verifyResetCode,
+        confirmReset,
       }}
     >
       {children}
