@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { X, Info, CheckCircle2, ShieldCheck, ArrowRight, BookOpen } from "lucide-react";
 import { Button } from "./Button";
 import { formatPriceInRupees } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 interface EnrollmentModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export function EnrollmentModal({
   itemType = "test",
 }: EnrollmentModalProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [candidateName, setCandidateName] = useState("");
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -52,7 +54,11 @@ export function EnrollmentModal({
   const handleStartExam = () => {
     handleModalClose();
     if (slug) {
-      router.push(`/tests/${slug}/take`);
+      if (user) {
+        router.push(`/tests/${slug}/take`);
+      } else {
+        router.push(`/signup?redirect=${encodeURIComponent(`/tests/${slug}/take`)}`);
+      }
     }
   };
 
@@ -125,7 +131,7 @@ export function EnrollmentModal({
                   onClick={handleStartExam}
                   className="w-full gap-2 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                 >
-                  Enter Examination Window
+                  {user ? "Enter Examination Window" : "Create Account & Enter Examination"}
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               ) : null}

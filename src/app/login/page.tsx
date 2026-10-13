@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Mail, AlertCircle, CheckCircle2, ArrowLeft, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -11,8 +11,12 @@ import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { useAuth } from "@/context/AuthContext";
 import EmailVerificationScreen from "@/components/auth/EmailVerificationScreen";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
+  const targetDestination = redirectParam || "/dashboard";
+
   const { signIn, signInWithGoogle, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,12 +26,12 @@ export default function LoginPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
 
-  // If already logged in, can directly view dashboard
+  // If already logged in, directly view destination
   React.useEffect(() => {
     if (user) {
-      router.push("/dashboard");
+      router.push(targetDestination);
     }
-  }, [user, router]);
+  }, [user, router, targetDestination]);
 
   const handleGoogleSignIn = async () => {
     setErrorMessage(null);
@@ -41,9 +45,9 @@ export default function LoginPage() {
           setErrorMessage(res.error);
         }
       } else {
-        setSuccessMessage("Authentication successful! Redirecting to dashboard...");
+        setSuccessMessage("Authentication successful! Redirecting...");
         setTimeout(() => {
-          router.push("/dashboard");
+          router.push(targetDestination);
         }, 500);
       }
     } catch (err: unknown) {
@@ -85,9 +89,9 @@ export default function LoginPage() {
         }
         setErrorMessage(res.error || "Failed to sign in. Please check credentials.");
       } else {
-        setSuccessMessage("Authentication successful! Redirecting to dashboard...");
+        setSuccessMessage("Authentication successful! Redirecting...");
         setTimeout(() => {
-          router.push("/dashboard");
+          router.push(targetDestination);
         }, 600);
       }
     } catch (err: unknown) {
@@ -139,6 +143,16 @@ export default function LoginPage() {
 
 
         <div className="mt-5 bg-white py-8 px-6 shadow-xs border border-slate-200 rounded-xl sm:px-10">
+          {/* Mock Examination Required Banner */}
+          {redirectParam && (
+            <div
+              className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex items-start gap-2.5 text-xs text-indigo-900 mb-4 font-medium"
+              role="alert"
+            >
+              <CheckCircle2 className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <span>Sign in with your account to access and record your mock examination.</span>
+            </div>
+          )}
           {/* Error & Success Messages */}
           {errorMessage && (
             <div
@@ -281,14 +295,14 @@ export default function LoginPage() {
                 isLoading={isLoading}
                 className="w-full font-medium"
               >
-                Sign In
+                {redirectParam ? "Sign In & Start Examination" : "Sign In"}
               </Button>
             </div>
 
             {/* Link to Sign Up */}
             <div className="text-center pt-2">
               <Link
-                href="/signup"
+                href={redirectParam ? `/signup?redirect=${encodeURIComponent(redirectParam)}` : "/signup"}
                 className="text-xs text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
               >
                 Don&apos;t have an account? Sign up
@@ -298,5 +312,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-[calc(100vh-140px)] flex items-center justify-center bg-slate-50/60" />}>
+      <LoginForm />
+    </React.Suspense>
   );
 }

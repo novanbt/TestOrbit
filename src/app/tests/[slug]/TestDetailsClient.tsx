@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { EnrollmentModal } from "@/components/ui/EnrollmentModal";
 import { formatPriceInRupees, formatDuration } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 interface TestDetailsClientProps {
   test?: MockTest;
@@ -27,6 +28,7 @@ interface TestDetailsClientProps {
 }
 
 export default function TestDetailsClient({ test: propTest, initialTest }: TestDetailsClientProps) {
+  const { user } = useAuth();
   const baseTest = propTest || initialTest!;
   const [test, setTest] = useState<MockTest>(baseTest);
   const [modalOpen, setModalOpen] = useState(false);
@@ -269,16 +271,43 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
 
             {/* Purchase / Start Test CTA */}
             <div className="space-y-2.5">
-              <Link href={`/tests/${test.slug}/take`} className="block">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="w-full font-semibold gap-2 shadow-xs bg-indigo-600 hover:bg-indigo-700 text-white"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  {test.isFree ? "Start Free Practice Mock" : "Start Mock Examination"}
-                </Button>
-              </Link>
+              {user ? (
+                <Link href={`/tests/${test.slug}/take`} className="block">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="w-full font-semibold gap-2 shadow-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    {test.isFree ? "Start Free Practice Mock" : "Start Mock Examination"}
+                  </Button>
+                </Link>
+              ) : (
+                <div className="space-y-2">
+                  <Link
+                    href={`/signup?redirect=${encodeURIComponent(`/tests/${test.slug}/take`)}`}
+                    className="block"
+                  >
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="w-full font-semibold gap-2 shadow-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      <BookOpen className="w-4 h-4" />
+                      Create Account to Start Mock
+                    </Button>
+                  </Link>
+                  <p className="text-[11px] text-center text-slate-500">
+                    Already registered?{" "}
+                    <Link
+                      href={`/login?redirect=${encodeURIComponent(`/tests/${test.slug}/take`)}`}
+                      className="text-indigo-600 font-semibold hover:underline"
+                    >
+                      Sign in here
+                    </Link>
+                  </p>
+                </div>
+              )}
               <Button
                 variant="outline"
                 size="sm"

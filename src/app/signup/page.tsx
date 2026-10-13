@@ -3,15 +3,19 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Mail, User, AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
 import EmailVerificationScreen from "@/components/auth/EmailVerificationScreen";
 
-export default function SignupPage() {
+function SignUpForm() {
   const router = useRouter();
-  const { signUp, signInWithGoogle } = useAuth();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
+  const targetDestination = redirectParam || "/dashboard";
+
+  const { signUp, signInWithGoogle, user } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,6 +23,13 @@ export default function SignupPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+
+  // If already logged in, redirect directly to targetDestination
+  React.useEffect(() => {
+    if (user) {
+      router.push(targetDestination);
+    }
+  }, [user, router, targetDestination]);
 
   const handleGoogleSignUp = async () => {
     setErrorMessage(null);
@@ -31,7 +42,7 @@ export default function SignupPage() {
           setErrorMessage(res.error);
         }
       } else {
-        router.push("/dashboard");
+        router.push(targetDestination);
       }
     } catch (err: unknown) {
       setErrorMessage(
@@ -73,7 +84,7 @@ export default function SignupPage() {
         setVerificationEmail(res.email || email);
         router.push(`/verify-email?email=${encodeURIComponent(res.email || email)}`);
       } else {
-        router.push("/dashboard");
+        router.push(targetDestination);
       }
     } catch (err: unknown) {
       setErrorMessage(
@@ -124,6 +135,16 @@ export default function SignupPage() {
 
         {/* Auth Form Card */}
         <div className="mt-6 bg-white py-8 px-6 shadow-xs border border-slate-200 rounded-xl sm:px-10">
+          {/* Mock Examination Required Banner */}
+          {redirectParam && (
+            <div
+              className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex items-start gap-2.5 text-xs text-indigo-900 mb-4 font-medium"
+              role="alert"
+            >
+              <CheckCircle2 className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+              <span>Create your account to start your mock examination and record your scorecard.</span>
+            </div>
+          )}
           {/* Error Message */}
           {errorMessage && (
             <div
@@ -278,14 +299,14 @@ export default function SignupPage() {
                 isLoading={isLoading}
                 className="w-full font-medium"
               >
-                Create Account & Go to Dashboard
+                {redirectParam ? "Create Account & Start Examination" : "Create Account & Go to Dashboard"}
               </Button>
             </div>
 
             {/* Toggle to Sign In */}
             <div className="text-center pt-2">
               <Link
-                href="/login"
+                href={redirectParam ? `/login?redirect=${encodeURIComponent(redirectParam)}` : "/login"}
                 className="text-xs text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
               >
                 Already have an account? Sign in
@@ -295,5 +316,13 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-[calc(100vh-140px)] flex items-center justify-center bg-slate-50/60" />}>
+      <SignUpForm />
+    </React.Suspense>
   );
 }

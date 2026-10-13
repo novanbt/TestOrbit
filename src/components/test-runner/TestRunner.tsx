@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Clock,
   CheckCircle2,
@@ -21,6 +22,7 @@ import {
   Eye,
   Home,
   ShieldAlert,
+  Lock,
 } from "lucide-react";
 import { MockTest, TestQuestion, QuestionAttemptStatus, TestAttemptScorecard } from "@/types";
 import { Button } from "@/components/ui/Button";
@@ -35,7 +37,7 @@ interface TestRunnerProps {
 }
 
 export function TestRunner({ test, questions }: TestRunnerProps) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   // Test state
   const totalQuestions = questions.length;
 
@@ -68,7 +70,7 @@ export function TestRunner({ test, questions }: TestRunnerProps) {
 
   // Countdown timer interval
   useEffect(() => {
-    if (isCompleted || isTimerPaused) return;
+    if (!user || isCompleted || isTimerPaused) return;
 
     const timer = setInterval(() => {
       setSecondsRemaining((prev) => {
@@ -82,7 +84,7 @@ export function TestRunner({ test, questions }: TestRunnerProps) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isCompleted, isTimerPaused]);
+  }, [user, isCompleted, isTimerPaused]);
 
   // Format seconds into HH:MM:SS
   const formatTime = (secs: number) => {
@@ -240,6 +242,146 @@ export function TestRunner({ test, questions }: TestRunnerProps) {
     setIsCompleted(false);
     setScorecard(null);
   };
+
+  // ----------------------------------------------------
+  // AUTHENTICATION GUARD: Prevent test attempt without account
+  // ----------------------------------------------------
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
+        <div className="w-9 h-9 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm font-medium text-slate-300">Verifying candidate session...</p>
+        <p className="text-xs text-slate-500 mt-1">Preparing your secure examination environment.</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    const redirectUrl = encodeURIComponent(`/tests/${test.slug}/take`);
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative w-full max-w-lg bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-md">
+          {/* Header icon & badge */}
+          <div className="flex items-center justify-between mb-6 pb-5 border-b border-slate-800">
+            <Link href="/" className="inline-block">
+              <Image
+                src="/logo-nav.png"
+                alt="TestOrbit"
+                width={140}
+                height={39}
+                className="h-8 w-auto object-contain"
+              />
+            </Link>
+            <Badge variant="outline" size="sm" className="gap-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              Account Required
+            </Badge>
+          </div>
+
+          <div className="text-center sm:text-left mb-6">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+              Create an Account to Start This Mock Test
+            </h1>
+            <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed">
+              To participate in official TestOrbit mock examinations, ensure timed integrity, and record your scorecard with detailed solutions, an account is required.
+            </p>
+          </div>
+
+          {/* Test Preview Card */}
+          <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 mb-6 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-indigo-400">
+                {test.categoryName}
+              </span>
+              <span className="text-xs text-slate-400">
+                {test.difficulty}
+              </span>
+            </div>
+            <h2 className="text-sm sm:text-base font-bold text-white line-clamp-2">
+              {test.title}
+            </h2>
+            <div className="flex items-center gap-4 text-xs text-slate-300 pt-1">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                {test.durationMinutes} Mins
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1.5">
+                <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+                {test.questionCount} Questions
+              </span>
+              {test.maxMarks ? (
+                <>
+                  <span>•</span>
+                  <span>{test.maxMarks} Marks</span>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            <Link
+              href={`/signup?redirect=${redirectUrl}`}
+              className="block w-full"
+            >
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full justify-center bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-md gap-2"
+              >
+                Create Free Account & Start Mock
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+
+            <Link
+              href={`/login?redirect=${redirectUrl}`}
+              className="block w-full"
+            >
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full justify-center border-slate-700 text-slate-200 hover:bg-slate-800 hover:text-white font-medium"
+              >
+                Sign In to Existing Account
+              </Button>
+            </Link>
+
+            <Link
+              href={`/tests/${test.slug}`}
+              className="block text-center text-xs text-slate-400 hover:text-slate-200 transition-colors pt-2"
+            >
+              ← Return to Test Overview
+            </Link>
+          </div>
+
+          {/* Trust badges */}
+          <div className="mt-6 pt-5 border-t border-slate-800/80 grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+            <div className="flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <span>Instant free registration</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <span>Personalized scorecards</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <span>Weakness analytics</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <span>Full step-by-step solutions</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ----------------------------------------------------
   // RESULT SCORECARD VIEW
