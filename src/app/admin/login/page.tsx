@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -27,12 +27,17 @@ export default function AdminLoginPage() {
     }
 
     setIsSubmitting(true);
-    const result = loginAdmin(email, password);
+    try {
+      const result = await loginAdmin(email, password);
 
-    if (result.success) {
-      router.push("/admin");
-    } else {
-      setErrorMessage(result.error || "Authentication failed. Access denied.");
+      if (result.success) {
+        router.push("/admin");
+      } else {
+        setErrorMessage(result.error || "Authentication failed. Access denied.");
+        setIsSubmitting(false);
+      }
+    } catch {
+      setErrorMessage("An unexpected authentication error occurred.");
       setIsSubmitting(false);
     }
   };

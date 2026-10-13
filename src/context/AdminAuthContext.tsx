@@ -2,19 +2,15 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { verifyAdminCredentialsAction } from "@/app/actions/adminAuthActions";
 
 interface AdminAuthContextType {
   isAdmin: boolean;
   adminEmail: string | null;
   loading: boolean;
-  loginAdmin: (email: string, pass: string) => { success: boolean; error?: string };
+  loginAdmin: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logoutAdmin: () => void;
 }
-
-import { ADMIN_CREDENTIALS } from "@/lib/constants/adminCredentials";
-
-export { ADMIN_CREDENTIALS };
-
 
 const ADMIN_STORAGE_KEY = "testorbit_admin_auth_token";
 
@@ -22,7 +18,7 @@ const AdminAuthContext = createContext<AdminAuthContextType>({
   isAdmin: false,
   adminEmail: null,
   loading: true,
-  loginAdmin: () => ({ success: false, error: "Not initialized" }),
+  loginAdmin: async () => ({ success: false, error: "Not initialized" }),
   logoutAdmin: () => {},
 });
 
@@ -37,7 +33,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       const token = sessionStorage.getItem(ADMIN_STORAGE_KEY) || localStorage.getItem(ADMIN_STORAGE_KEY);
       if (token) {
         const parsed = JSON.parse(token);
-        if (parsed.email === ADMIN_CREDENTIALS.email && parsed.validUntil > Date.now()) {
+        if (parsed.email && parsed.role === "super_admin" && parsed.validUntil > Date.now()) {
           setIsAdmin(true);
           setAdminEmail(parsed.email);
         } else {
@@ -52,7 +48,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const loginAdmin = (email: string, pass: string): { success: boolean; error?: string } => {
+  const loginAdmin = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPass = pass.trim();
 
@@ -60,12 +56,13 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: "Please enter both administrator email and password." };
     }
 
-    if (trimmedEmail !== ADMIN_CREDENTIALS.email.toLowerCase() || trimmedPass !== ADMIN_CREDENTIALS.password) {
-      return { success: false, error: "Invalid administrator credentials. Access denied." };
+    const res = await verifyAdminCredentialsAction(trimmedEmail, trimmedPass);
+    if (!res.success) {
+      return { success: false, error: res.error || "Invalid administrator credentials. Access denied." };
     }
 
     const sessionPayload = {
-      email: ADMIN_CREDENTIALS.email,
+      email: res.adminEmail || trimmedEmail,
       role: "super_admin",
       createdAt: new Date().toISOString(),
       validUntil: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
@@ -77,7 +74,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
 
     setIsAdmin(true);
-    setAdminEmail(ADMIN_CREDENTIALS.email);
+    setAdminEmail(res.adminEmail || trimmedEmail);
     return { success: true };
   };
 

@@ -62,12 +62,17 @@ export async function ensureAdminAuth() {
   }
   if (auth.currentUser) return auth.currentUser;
 
-  try {
-    const cred = await signInWithEmailAndPassword(
-      auth,
-      ADMIN_CREDENTIALS.email,
-      ADMIN_CREDENTIALS.password
+  const email = process.env.ADMIN_EMAIL || ADMIN_CREDENTIALS.email;
+  const password = process.env.ADMIN_PASSWORD || ADMIN_CREDENTIALS.password;
+
+  if (!email || !password) {
+    throw new Error(
+      "Administrator credentials are not configured. Please define ADMIN_EMAIL and ADMIN_PASSWORD in your environment variables."
     );
+  }
+
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
     return cred.user;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

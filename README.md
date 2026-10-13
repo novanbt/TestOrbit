@@ -20,10 +20,41 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Authentication
-Connected to Firebase Authentication supporting:
-- Email / Password registration with mandatory email verification
-- Continue with Google sign-in and sign-up
+## Environment Variables & Security Setup
+
+TestOrbit uses a secure environment architecture that separates public browser-safe configuration from privileged server-only secrets.
+
+### 1. Local Setup
+Copy the template to create your local environment file:
+
+```bash
+cp .env.example .env.local
+```
+
+Populate `.env.local` with your configuration values:
+
+```bash
+# Firebase Client Configuration (Browser-safe)
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project_id.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
+
+# Server-Only Administrator Secrets (NEVER prefix with NEXT_PUBLIC_)
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PASSWORD=your_secure_admin_password
+```
+
+> **Security Rule:** Never commit `.env`, `.env.local`, or any credentials to Git. Only `.env.example` with safe placeholder values is committed.
+
+### 2. Secret Scanning & Audit
+To verify that no private keys, passwords, or untracked environment files are accidentally staged or committed, run:
+
+```bash
+npm run check:secrets
+```
 
 
 ## Learn More
