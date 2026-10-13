@@ -16,6 +16,9 @@ export default function HomePage() {
   const featuredTests = getCanonicalFeaturedTests();
   const testSeries = getAllTestSeries().slice(0, 3);
 
+
+
+
   return (
     <div className="flex flex-col w-full pb-16">
       {/* 1. Hero Section */}

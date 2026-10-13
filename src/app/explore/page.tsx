@@ -1,6 +1,7 @@
 import React, { Suspense } from "react";
+import { connection } from "next/server";
 import ExploreClient from "./ExploreClient";
-import { getAllCanonicalPublishedTests } from "@/data/tests";
+import { fetchCanonicalPublishedTests } from "@/lib/data/testService";
 
 export const metadata = {
   title: "Explore Tests — TestOrbit",
@@ -8,9 +9,13 @@ export const metadata = {
     "Filter and discover mock tests across School Education, Competitive Exams, College Mocks, and Software Development.",
 };
 
-export default function ExplorePage() {
-  const initialTests = getAllCanonicalPublishedTests();
+async function ExploreCatalogue() {
+  await connection();
+  const initialTests = await fetchCanonicalPublishedTests();
+  return <ExploreClient initialTests={initialTests} />;
+}
 
+export default function ExplorePage() {
   return (
     <Suspense
       fallback={
@@ -20,8 +25,7 @@ export default function ExplorePage() {
         </div>
       }
     >
-      <ExploreClient initialTests={initialTests} />
+      <ExploreCatalogue />
     </Suspense>
   );
 }
-

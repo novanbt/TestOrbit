@@ -67,10 +67,21 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
       setAllTests(initialTests);
     }
 
+    // Always fetch fresh canonical tests from Firestore on client mount
+    import("@/lib/data/testService").then(({ fetchCanonicalPublishedTests }) => {
+      fetchCanonicalPublishedTests().then((fresh) => {
+        if (fresh && fresh.length > 0) {
+          setAllTests(fresh);
+        }
+      });
+    });
+
     const handleUpdate = () => {
       import("@/lib/data/testService").then(({ fetchCanonicalPublishedTests }) => {
         fetchCanonicalPublishedTests().then((fresh) => {
-          if (fresh && fresh.length > 0) setAllTests(fresh);
+          if (fresh && fresh.length > 0) {
+            setAllTests(fresh);
+          }
         });
       });
     };
@@ -78,6 +89,7 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
     window.addEventListener("testorbit_admin_data_updated", handleUpdate);
     return () => window.removeEventListener("testorbit_admin_data_updated", handleUpdate);
   }, [initialTests]);
+
 
   const filterState: FilterState = useMemo(
     () => ({
