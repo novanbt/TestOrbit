@@ -60,20 +60,27 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
 
   const categories = getCategories();
   const [allTests, setAllTests] = useState<MockTest[]>(initialTests || getAllTests());
-  const allSeries = getAllTestSeries();
+  const [allSeries, setAllSeries] = useState(getAllTestSeries());
 
   useEffect(() => {
     if (initialTests && initialTests.length > 0) {
       setAllTests(initialTests);
     }
 
-    // Always fetch fresh canonical tests from Firestore on client mount
+    // Always fetch fresh canonical tests & bundles from Firestore / local registry on client mount
     import("@/lib/data/testService").then(({ fetchCanonicalPublishedTests }) => {
       fetchCanonicalPublishedTests().then((fresh) => {
         if (fresh && fresh.length > 0) {
           setAllTests(fresh);
         }
       });
+    });
+
+    import("@/lib/data/bundleService").then(({ getAllCanonicalPublishedBundles }) => {
+      const freshBundles = getAllCanonicalPublishedBundles();
+      if (freshBundles && freshBundles.length > 0) {
+        setAllSeries(freshBundles);
+      }
     });
 
     const handleUpdate = () => {
@@ -84,11 +91,16 @@ export default function ExploreClient({ initialTests }: ExploreClientProps = {})
           }
         });
       });
+
+      import("@/lib/data/bundleService").then(({ getAllCanonicalPublishedBundles }) => {
+        setAllSeries(getAllCanonicalPublishedBundles());
+      });
     };
 
     window.addEventListener("testorbit_admin_data_updated", handleUpdate);
     return () => window.removeEventListener("testorbit_admin_data_updated", handleUpdate);
   }, [initialTests]);
+
 
 
   const filterState: FilterState = useMemo(

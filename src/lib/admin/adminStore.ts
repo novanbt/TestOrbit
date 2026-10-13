@@ -233,12 +233,19 @@ export function saveAdminSeries(series: TestSeries): void {
   const list = getAdminSeries();
   const existingIndex = list.findIndex((s) => s.id === series.id || s.slug === series.slug);
 
+  const normalized: TestSeries = {
+    ...series,
+    includedTestsCount: series.includedItems ? series.includedItems.length : (series.includedTestSlugs?.length || 0),
+    includedTestSlugs: series.includedItems ? series.includedItems.map((i) => i.testSlug) : series.includedTestSlugs || [],
+    updatedAt: new Date().toISOString(),
+  };
+
   let updated: TestSeries[];
   if (existingIndex >= 0) {
     updated = [...list];
-    updated[existingIndex] = { ...updated[existingIndex], ...series };
+    updated[existingIndex] = { ...updated[existingIndex], ...normalized };
   } else {
-    updated = [series, ...list];
+    updated = [normalized, ...list];
   }
 
   try {
@@ -247,6 +254,35 @@ export function saveAdminSeries(series: TestSeries): void {
   } catch (err) {
     console.error("Failed to save series:", err);
   }
+}
+
+export function duplicateAdminSeries(id: string): TestSeries | undefined {
+  if (!isClient()) return undefined;
+  const list = getAdminSeries();
+  const target = list.find((s) => s.id === id);
+  if (!target) return undefined;
+
+  const copyId = `bundle-${Date.now().toString(36)}`;
+  const copySlug = `${target.slug}-copy-${Math.random().toString(36).substring(2, 5)}`;
+  const duplicated: TestSeries = {
+    ...target,
+    id: copyId,
+    slug: copySlug,
+    title: `${target.title} (Copy)`,
+    status: "draft",
+    published: false,
+    createdAt: new Date().toISOString().split("T")[0],
+    updatedAt: new Date().toISOString(),
+  };
+
+  const updated = [duplicated, ...list];
+  try {
+    localStorage.setItem(STORAGE_KEYS.SERIES, JSON.stringify(updated));
+    dispatchUpdateEvent();
+  } catch (err) {
+    console.error("Failed to duplicate series:", err);
+  }
+  return duplicated;
 }
 
 export function deleteAdminSeries(id: string): void {
@@ -260,6 +296,7 @@ export function deleteAdminSeries(id: string): void {
     console.error("Failed to delete series:", err);
   }
 }
+
 
 /**
  * -------------------------------------------------------------

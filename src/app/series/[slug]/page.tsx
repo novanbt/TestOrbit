@@ -1,7 +1,7 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { getTestSeriesBySlug, getAllTestSeries } from "@/data/test-series";
+import { getCanonicalBundleBySlug, getAllCanonicalPublishedBundles } from "@/lib/data/bundleService";
 import SeriesDetailsClient from "./SeriesDetailsClient";
 
 interface PageProps {
@@ -9,31 +9,31 @@ interface PageProps {
 }
 
 export async function generateStaticParams() {
-  const series = getAllTestSeries();
-  return series.map((s) => ({
-    slug: s.slug,
+  const bundles = getAllCanonicalPublishedBundles();
+  return bundles.map((b) => ({
+    slug: b.slug,
   }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const series = getTestSeriesBySlug(slug);
+  const series = getCanonicalBundleBySlug(slug);
 
   if (!series) {
     return {
-      title: "Test Series Not Found — TestOrbit",
+      title: "Test Series Bundle Not Found — TestOrbit",
     };
   }
 
   return {
     title: `${series.title} — TestOrbit`,
-    description: series.description,
+    description: series.shortDescription || series.description,
   };
 }
 
 export default async function SeriesDetailsPage({ params }: PageProps) {
   const { slug } = await params;
-  const series = getTestSeriesBySlug(slug);
+  const series = getCanonicalBundleBySlug(slug);
 
   if (!series) {
     notFound();

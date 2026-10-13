@@ -33,23 +33,83 @@ export interface MockTest {
   updatedAt?: string;
 }
 
-export interface TestSeries {
+export interface BundleIncludedTestItem {
+  testId: string;
+  testSlug: string;
+  testTitle?: string;
+  displayOrder: number;
+  sectionHeading?: string;
+  note?: string;
+  previewPolicy?: "none" | "free_sample" | "preview_only";
+}
+
+export type BundleStatus = "draft" | "published" | "archived";
+
+export interface TestBundle {
   id: string;
   slug: string;
   title: string;
+  shortDescription?: string;
+  description: string;
+  coverImage?: string;
   categoryId: string;
   categoryName: string;
+  subcategory?: string;
   targetAudience?: string;
+  targetClassOrExam?: string;
+  difficulty?: DifficultyLevel;
+  language?: string;
   tags?: string[];
-  description: string;
-  includedTestsCount: number;
+  author?: string;
+  includedItems: BundleIncludedTestItem[];
+  includedTestsCount: number; // strictly derived from includedItems.length
+  includedTestSlugs?: string[]; // for quick indexing & backward compatibility
   priceInPaise: number;
-  originalPriceInPaise?: number;
-  discountPercentage?: number;
-  includedTestSlugs?: string[];
+  originalPriceInPaise?: number; // strictly derived from sum of test prices or configured reference
+  discountPercentage?: number; // strictly derived
+  isFree?: boolean;
+  status: BundleStatus;
   published: boolean;
+  accessDurationDays?: number;
+  attemptLimit?: number;
+  isFeatured?: boolean;
+  salesCount?: number;
   createdAt: string;
+  updatedAt?: string;
+  createdBy?: string;
+  updatedBy?: string;
 }
+
+// Backwards compatibility alias
+export type TestSeries = TestBundle;
+
+export interface UserBundleEnrollment {
+  id: string;
+  userId: string;
+  bundleId: string;
+  bundleSlug: string;
+  bundleTitle: string;
+  orderId: string;
+  purchasedAt: string;
+  accessExpiresAt?: string;
+  pricePaidInPaise: number;
+  includedTestIds: string[];
+  includedTestSlugs: string[];
+  status: "active" | "expired";
+}
+
+export interface UserTestEntitlement {
+  id: string;
+  userId: string;
+  testId: string;
+  testSlug: string;
+  source: "individual" | "bundle";
+  bundleId?: string;
+  grantedAt: string;
+  expiresAt?: string;
+  status: "active" | "expired";
+}
+
 
 export type ProductTypeFilter = "all" | "tests" | "series";
 export type SortOption = "relevance" | "price-asc" | "price-desc" | "duration" | "newest";

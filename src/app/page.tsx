@@ -9,7 +9,7 @@ import { TestSeriesCard } from "@/components/marketplace/TestSeriesCard";
 import { FeaturedTestsClient } from "@/components/marketplace/FeaturedTestsClient";
 import { getCategories } from "@/data/categories";
 import { fetchCanonicalFeaturedTests } from "@/lib/data/testService";
-import { getAllTestSeries } from "@/data/test-series";
+import { getAllCanonicalPublishedBundles } from "@/lib/data/bundleService";
 import { connection } from "next/server";
 
 async function FeaturedTestsStream() {
@@ -20,7 +20,8 @@ async function FeaturedTestsStream() {
 
 export default function HomePage() {
   const categories = getCategories();
-  const testSeries = getAllTestSeries().slice(0, 3);
+  const testSeries = getAllCanonicalPublishedBundles().slice(0, 3);
+
 
 
 
@@ -136,7 +137,7 @@ export default function HomePage() {
             </p>
           </div>
           <Link
-            href="/explore?type=series"
+            href="/series"
             className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 self-start md:self-auto"
           >
             Explore all test series
@@ -144,11 +145,19 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {testSeries.map((series) => (
-            <TestSeriesCard key={series.id} series={series} />
-          ))}
-        </div>
+        {testSeries.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {testSeries.map((series) => (
+              <TestSeriesCard key={series.id} series={series} />
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-2xl">
+            <p className="text-xs text-slate-500">
+              New test series packages are being prepared by curriculum experts.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* 5. Student Call to Action Banner */}

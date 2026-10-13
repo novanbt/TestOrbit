@@ -43,9 +43,10 @@ export function AdminSidebar({ onCloseMobile }: AdminSidebarProps) {
       icon: PlusCircle,
     },
     {
-      label: "Test Series Bundles",
+      label: "Test Bundles",
       href: "/admin/series",
       icon: Layers,
+      badge: "Curated",
     },
     {
       label: "Curriculum Categories",

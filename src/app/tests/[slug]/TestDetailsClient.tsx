@@ -13,6 +13,8 @@ import {
   Share2,
   Check,
   Info,
+  Layers,
+  ArrowRight,
 } from "lucide-react";
 import { MockTest } from "@/types";
 import { Badge } from "@/components/ui/Badge";
@@ -20,6 +22,8 @@ import { Button } from "@/components/ui/Button";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { formatPriceInRupees, formatDuration } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { isUserEntitledToTest } from "@/lib/data/entitlementService";
+import { getAllCanonicalPublishedBundles } from "@/lib/data/bundleService";
 
 interface TestDetailsClientProps {
   test?: MockTest;
@@ -31,6 +35,23 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
   const baseTest = propTest || initialTest!;
   const [test, setTest] = useState<MockTest>(baseTest);
   const [copied, setCopied] = useState(false);
+  const [isEntitled, setIsEntitled] = useState(false);
+
+  useEffect(() => {
+    if (user?.id) {
+      isUserEntitledToTest(user.id, baseTest.id).then(setIsEntitled);
+    }
+  }, [user?.id, baseTest.id]);
+
+  const parentBundle = React.useMemo(() => {
+    const bundles = getAllCanonicalPublishedBundles();
+    return bundles.find(
+      (b) =>
+        b.includedItems?.some((i) => i.testSlug === test.slug || i.testId === test.id) ||
+        b.includedTestSlugs?.includes(test.slug)
+    );
+  }, [test.slug, test.id]);
+
 
   useEffect(() => {
     if (propTest || initialTest) {
@@ -266,6 +287,37 @@ export default function TestDetailsClient({ test: propTest, initialTest }: TestD
                 Inclusive of all question papers & detailed solutions.
               </p>
             </div>
+
+            {isEntitled && (
+              <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+                <span className="text-xs font-bold text-emerald-800 block">
+                  ✓ Full Access Unlocked
+                </span>
+                <span className="text-[10px] text-emerald-700">
+                  Included in your active course / bundle entitlements
+                </span>
+              </div>
+            )}
+
+            {parentBundle && !isEntitled && (
+              <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-xl space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
+                  <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Curated Bundle Available</span>
+                </div>
+                <p className="text-[11px] text-indigo-800 leading-snug">
+                  This test is part of <strong>{parentBundle.title}</strong> ({parentBundle.includedTestsCount} tests for {formatPriceInRupees(parentBundle.priceInPaise)}).
+                </p>
+                <Link
+                  href={`/series/${parentBundle.slug}`}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 hover:text-indigo-900 hover:underline pt-0.5"
+                >
+                  <span>Explore Bundle ({parentBundle.discountPercentage}% OFF)</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+            )}
+
 
             {/* Purchase / Start Test CTA */}
             <div className="space-y-2.5">

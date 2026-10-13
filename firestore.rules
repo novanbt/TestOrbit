@@ -48,6 +48,11 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    match /testBundles/{bundleId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
     match /test_series/{seriesId} {
       allow read: if true;
       allow write: if isAuthenticated();

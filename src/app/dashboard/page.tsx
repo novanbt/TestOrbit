@@ -21,6 +21,9 @@ import {
   CheckCircle2,
   RotateCcw,
   BarChart3,
+  ChevronDown,
+  ChevronUp,
+  PlayCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -32,6 +35,11 @@ import {
   UserDashboardData,
   StoredAttempt,
 } from "@/lib/firebase/firestoreService";
+import { UserBundleEnrollment, MockTest } from "@/types";
+import { getUserEnrolledBundles } from "@/lib/data/entitlementService";
+import { getCanonicalBundleById, getCanonicalBundleBySlug } from "@/lib/data/bundleService";
+import { MOCK_TESTS } from "@/data/baseTests";
+import { getAdminTests } from "@/lib/admin/adminStore";
 
 const TARGET_EXAMS = [
   "JEE Main & Advanced 2026",
@@ -52,6 +60,8 @@ export default function DashboardPage() {
     totalPracticeTimeSeconds: 0,
     recentAttempts: [],
   });
+  const [enrolledBundles, setEnrolledBundles] = useState<UserBundleEnrollment[]>([]);
+  const [expandedBundleIds, setExpandedBundleIds] = useState<Record<string, boolean>>({});
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSavingTarget, setIsSavingTarget] = useState(false);
   const [targetSavedSuccess, setTargetSavedSuccess] = useState(false);
@@ -67,10 +77,23 @@ export default function DashboardPage() {
       }
     });
 
+    const loadBundles = () => {
+      getUserEnrolledBundles(user.id).then((bundles) => {
+        if (isMounted) {
+          setEnrolledBundles(bundles);
+        }
+      });
+    };
+    loadBundles();
+
+    window.addEventListener("testorbit_entitlements_updated", loadBundles);
+
     return () => {
       isMounted = false;
+      window.removeEventListener("testorbit_entitlements_updated", loadBundles);
     };
   }, [user?.id]);
+
 
   const handleUpdateTarget = async (newTarget: string) => {
     if (!user?.id || isSavingTarget) return;
@@ -335,9 +358,11 @@ export default function DashboardPage() {
             >
               <Layers className="w-4 h-4" />
               My Test Series
-              <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full font-semibold">
-                0
-              </span>
+              {enrolledBundles.length > 0 && (
+                <span className="text-[11px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-semibold">
+                  {enrolledBundles.length}
+                </span>
+              )}
             </button>
 
             <button
@@ -431,28 +456,197 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Tab 2: My Test Series */}
+          {/* Tab 2: My Test Series / Bundles */}
           {activeTab === "series" && (
-            <div className="p-8 bg-white border border-slate-200 rounded-xl text-center space-y-4">
-              <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-                <Layers className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">
-                  No test series packages enrolled yet
-                </h3>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
-                  Test series bundles include multiple progressive mock tests, syllabus-wide analytics, and comprehensive answer keys.
-                </p>
-              </div>
-              <Link href="/explore?type=series">
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  Browse Test Series Bundles
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
-              </Link>
+            <div className="space-y-4">
+              {enrolledBundles.length > 0 ? (
+                <div className="space-y-4">
+                  {enrolledBundles.map((enrollment) => {
+                    const testsMap = new Map<string, MockTest>();
+                    for (const t of MOCK_TESTS) {
+                      testsMap.set(t.slug, t);
+                      testsMap.set(t.id, t);
+                    }
+                    try {
+                      const adminTests = getAdminTests();
+                      for (const t of adminTests) {
+                        testsMap.set(t.slug, t);
+                        testsMap.set(t.id, t);
+                      }
+                    } catch {}
+
+                    const bundleTests = (enrollment.includedTestSlugs || enrollment.includedTestIds || [])
+                      .map((s) => testsMap.get(s))
+                      .filter((t): t is MockTest => Boolean(t));
+
+                    const completedAttempts = bundleTests.map((t) => {
+                      const att = dashboardData.recentAttempts.find(
+                        (a) => a.testSlug === t.slug || a.testId === t.id
+                      );
+                      return { test: t, attempt: att };
+                    });
+
+                    const completedCount = completedAttempts.filter((ca) => Boolean(ca.attempt)).length;
+                    const totalCount = bundleTests.length || enrollment.includedTestSlugs?.length || 1;
+                    const progressPercent = Math.round((completedCount / totalCount) * 100);
+                    const isExpanded = expandedBundleIds[enrollment.bundleId] ?? false;
+
+                    return (
+                      <div
+                        key={enrollment.id || enrollment.bundleId}
+                        className="p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                Active Access
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                Enrolled on {new Date(enrollment.purchasedAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <h4 className="text-base font-bold text-slate-900">
+                              {enrollment.bundleTitle}
+                            </h4>
+                            <p className="text-xs text-slate-500">
+                              Single-purchase package containing {totalCount} full mock tests.
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedBundleIds((prev) => ({
+                                  ...prev,
+                                  [enrollment.bundleId]: !isExpanded,
+                                }))
+                              }
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                            >
+                              <span>{isExpanded ? "Hide Tests" : "View Tests"}</span>
+                              {isExpanded ? (
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              ) : (
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+
+                            <Link href={`/series/${enrollment.bundleSlug}`}>
+                              <Button variant="outline" size="sm" className="text-xs">
+                                Bundle Page
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+
+                        {/* Real Progress Bar */}
+                        <div className="space-y-1.5 pt-1">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-slate-600">
+                              Curriculum Progress: {completedCount} of {totalCount} Tests Completed
+                            </span>
+                            <span className="text-indigo-600 font-bold">{progressPercent}%</span>
+                          </div>
+                          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-linear-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-500"
+                              style={{ width: `${progressPercent}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Expandable Included Tests List */}
+                        {isExpanded && (
+                          <div className="pt-4 border-t border-slate-100 space-y-2.5 animate-in fade-in">
+                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                              All Included Mock Tests:
+                            </span>
+                            <div className="space-y-2">
+                              {completedAttempts.map(({ test, attempt }, idx) => (
+                                <div
+                                  key={test.id || idx}
+                                  className="p-3 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                                >
+                                  <div className="space-y-0.5 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                        {idx + 1}
+                                      </span>
+                                      <span className="font-semibold text-slate-900 truncate">
+                                        {test.title}
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 pl-6 flex items-center gap-2">
+                                      <span>{test.questionCount} Questions</span>
+                                      <span>•</span>
+                                      <span>{test.durationMinutes} mins</span>
+                                      {attempt && (
+                                        <>
+                                          <span>•</span>
+                                          <span className="text-emerald-700 font-semibold">
+                                            Score: {attempt.marksScored}/{attempt.maxMarks} ({attempt.accuracyPercentage}%)
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="pl-6 sm:pl-0 shrink-0">
+                                    <Link href={`/tests/${test.slug}/take`}>
+                                      <Button
+                                        variant={attempt ? "outline" : "primary"}
+                                        size="sm"
+                                        className="h-7 px-3 text-xs gap-1 font-semibold"
+                                      >
+                                        {attempt ? (
+                                          <>
+                                            <RotateCcw className="w-3 h-3" />
+                                            Retake
+                                          </>
+                                        ) : (
+                                          <>
+                                            <PlayCircle className="w-3 h-3" />
+                                            Start Exam
+                                          </>
+                                        )}
+                                      </Button>
+                                    </Link>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-8 bg-white border border-slate-200 rounded-xl text-center space-y-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                    <Layers className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900">
+                      No test series packages enrolled yet
+                    </h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
+                      Test series bundles combine multiple progressive mock tests into one single-purchase package with syllabus-wide analytics.
+                    </p>
+                  </div>
+                  <Link href="/series">
+                    <Button variant="primary" size="sm" className="gap-1.5 font-semibold">
+                      Browse Test Series Bundles
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           )}
+
 
           {/* Tab 3: Recent Activity */}
           {activeTab === "activity" && (
