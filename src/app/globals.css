@@ -34,10 +34,12 @@
 
 /* Custom sleek scrollbar for scrollable panels */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: 6px;
+  height: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(241, 245, 249, 0.7);
+  border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: #cbd5e1;
@@ -48,5 +50,5 @@
 }
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: #cbd5e1 rgba(241, 245, 249, 0.7);
 }

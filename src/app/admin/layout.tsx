@@ -65,7 +65,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0">
         <AdminHeader onOpenMobileMenu={() => setMobileSidebarOpen(true)} />
-        <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto">{children}</main>
+        <main className="flex-1 p-4 sm:p-8 max-w-7xl xl:max-w-[1550px] w-full mx-auto">{children}</main>
       </div>
     </div>
   );
