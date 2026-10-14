@@ -675,7 +675,7 @@ export function TestRunner({ test, questions }: TestRunnerProps) {
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
-                          <X className="w-3.5 h-3.5" /> Incorrect (-{q.negativeMarks || 0})
+                          <X className="w-3.5 h-3.5" /> Incorrect ({(q.negativeMarks || 0) > 0 ? `-${q.negativeMarks}` : "0"})
                         </span>
                       )}
                     </div>
@@ -816,9 +816,15 @@ export function TestRunner({ test, questions }: TestRunnerProps) {
             <div className="flex items-center gap-2">
               <span className="font-semibold text-emerald-700">+{currentQ.marks} Marks</span>
               <span className="text-slate-300">|</span>
-              <span className="font-semibold text-rose-700">
-                -{currentQ.negativeMarks || 0} Negative
-              </span>
+              {(currentQ.negativeMarks || 0) > 0 ? (
+                <span className="font-semibold text-rose-700">
+                  -{currentQ.negativeMarks} Negative
+                </span>
+              ) : (
+                <span className="font-medium text-slate-500 text-xs">
+                  No Negative Marking
+                </span>
+              )}
             </div>
           </div>
 

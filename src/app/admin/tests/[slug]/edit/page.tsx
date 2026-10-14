@@ -687,6 +687,64 @@ export default function EditTestPage({ params }: { params: Promise<{ slug: strin
             </div>
           )}
 
+          {questions.length > 0 && (
+            <div className="p-3 bg-slate-50 border border-slate-200/90 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-700">Quick Scoring Calibration:</span>
+                <span className="text-[11px] text-slate-500">
+                  Total Questions Marks:{" "}
+                  <strong className="text-slate-900">
+                    {questions.reduce((sum, q) => sum + (q.marks || 0), 0)} Marks
+                  </strong>
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] text-slate-500 mr-1">Batch Negative Marks:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuestions((prev) => prev.map((q) => ({ ...q, negativeMarks: 0 })));
+                  }}
+                  className="px-2 py-1 text-[11px] font-medium bg-white border border-slate-200 hover:border-slate-300 rounded-md text-slate-700 shadow-2xs cursor-pointer"
+                >
+                  No Penalty (0)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuestions((prev) =>
+                      prev.map((q) => ({
+                        ...q,
+                        negativeMarks: Number(((q.marks || 4) * 0.25).toFixed(2)),
+                      }))
+                    );
+                  }}
+                  className="px-2 py-1 text-[11px] font-medium bg-white border border-indigo-200 hover:bg-indigo-50/50 rounded-md text-indigo-700 shadow-2xs cursor-pointer"
+                >
+                  25% of Marks
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuestions((prev) => prev.map((q) => ({ ...q, negativeMarks: 0.5 })));
+                  }}
+                  className="px-2 py-1 text-[11px] font-medium bg-white border border-slate-200 hover:border-slate-300 rounded-md text-slate-700 shadow-2xs cursor-pointer"
+                >
+                  -0.5M
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuestions((prev) => prev.map((q) => ({ ...q, negativeMarks: 1 })));
+                  }}
+                  className="px-2 py-1 text-[11px] font-medium bg-white border border-slate-200 hover:border-slate-300 rounded-md text-slate-700 shadow-2xs cursor-pointer"
+                >
+                  -1M
+                </button>
+              </div>
+            </div>
+          )}
+
           {questions.map((q, idx) => (
             <div
               key={q.id || idx}
@@ -760,6 +818,7 @@ export default function EditTestPage({ params }: { params: Promise<{ slug: strin
                   <input
                     type="number"
                     step="0.5"
+                    min="0.5"
                     value={q.marks}
                     onChange={(e) => handleUpdateQuestion(idx, "marks", parseFloat(e.target.value) || 1)}
                     className="w-full h-8.5 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none"
@@ -770,8 +829,12 @@ export default function EditTestPage({ params }: { params: Promise<{ slug: strin
                   <input
                     type="number"
                     step="0.25"
-                    value={q.negativeMarks || 0}
-                    onChange={(e) => handleUpdateQuestion(idx, "negativeMarks", parseFloat(e.target.value) || 0)}
+                    min="0"
+                    value={q.negativeMarks !== undefined ? q.negativeMarks : 0}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      handleUpdateQuestion(idx, "negativeMarks", isNaN(val) ? 0 : Math.abs(val));
+                    }}
                     className="w-full h-8.5 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none"
                   />
                 </div>
