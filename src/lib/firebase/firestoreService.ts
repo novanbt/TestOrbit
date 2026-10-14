@@ -23,6 +23,10 @@ export interface StoredAttempt {
   accuracyPercentage: number;
   timeTakenSeconds: number;
   completedAt: string;
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  status?: string;
   scorecard: TestAttemptScorecard;
 }
 
@@ -39,13 +43,14 @@ const LOCAL_PROFILE_PREFIX = "testorbit_profile_";
 
 /**
  * Save a test attempt to Firestore under /users/{userId}/attempts/{attemptId}
- * and update the user's aggregate stats in /users/{userId}.
+ * and top-level /attempts/{attemptId}, updating the user's aggregate stats.
  * Also caches to localStorage for instant offline access.
  */
 export async function saveUserAttempt(
   userId: string,
   test: MockTest,
-  scorecard: TestAttemptScorecard
+  scorecard: TestAttemptScorecard,
+  userDetails?: { name?: string; email?: string }
 ): Promise<StoredAttempt> {
   const attemptId = "att_" + Date.now().toString(36) + "_" + Math.random().toString(36).substring(2, 7);
   const now = new Date().toISOString();
@@ -62,6 +67,10 @@ export async function saveUserAttempt(
     accuracyPercentage: scorecard.accuracyPercentage,
     timeTakenSeconds: scorecard.timeTakenSeconds,
     completedAt: now,
+    userId,
+    userName: userDetails?.name,
+    userEmail: userDetails?.email,
+    status: "Evaluated",
     scorecard,
   };
 
@@ -79,11 +88,19 @@ export async function saveUserAttempt(
   // 2. Persist to Firestore if configured
   if (isFirebaseConfigured && db) {
     try {
+      // Save under user's personal attempts subcollection
       const attemptDocRef = doc(db, "users", userId, "attempts", attemptId);
       await setDoc(attemptDocRef, {
         ...attemptData,
         createdAt: now,
       });
+
+      // Also mirror to global attempts collection for administrative dashboards
+      const globalAttemptRef = doc(db, "attempts", attemptId);
+      await setDoc(globalAttemptRef, {
+        ...attemptData,
+        createdAt: now,
+      }).catch((e) => console.warn("Failed to mirror attempt globally:", e));
 
       // Update aggregate profile
       const userDocRef = doc(db, "users", userId);
@@ -105,6 +122,8 @@ export async function saveUserAttempt(
           avgAccuracy: newAvgAccuracy,
           totalPracticeTimeSeconds: newTotalTime,
           lastActiveAt: now,
+          ...(userDetails?.name ? { name: userDetails.name } : {}),
+          ...(userDetails?.email ? { email: userDetails.email } : {}),
         },
         { merge: true }
       );

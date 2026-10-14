@@ -224,9 +224,12 @@ export function TestRunner({ test, questions }: TestRunnerProps) {
     setIsCompleted(true);
     setShowSubmitModal(false);
 
-    // Persist attempt to Firestore under /users/{userId}/attempts
+    // Persist attempt to Firestore under /users/{userId}/attempts and global /attempts
     if (user?.id) {
-      saveUserAttempt(user.id, test, finalScorecard).catch((err) => {
+      saveUserAttempt(user.id, test, finalScorecard, {
+        name: user.name,
+        email: user.email,
+      }).catch((err) => {
         console.warn("Could not save attempt to Firestore:", err);
       });
     }

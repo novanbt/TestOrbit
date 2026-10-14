@@ -25,31 +25,44 @@ export default function LearnersAdminPage() {
         console.warn("Failed to load learners via action, fallback to client:", e);
       }
 
-      const list: LearnerRecord[] = [];
+      const map = new Map<string, LearnerRecord>();
       if (isFirebaseConfigured && db) {
         try {
           const snap = await getDocs(collection(db, "users"));
           snap.forEach((d) => {
             const data = d.data();
+            const email = (data.email || "").trim().toLowerCase();
             if (
-              data.email !== "testorbit@ellipse.com" &&
-              data.role !== "admin" &&
-              (data.email || data.name)
+              email &&
+              email !== "testorbit@ellipse.com" &&
+              data.role !== "admin"
             ) {
-              list.push({
-                id: d.id,
-                name: data.name || data.displayName || data.email?.split("@")[0] || "Learner",
-                email: data.email || "",
-                createdAt: data.createdAt || new Date().toISOString(),
-                targetExam: data.targetExam || "JEE Main & Advanced 2026",
-                totalAttempts: data.totalAttempts || 0,
-                avgAccuracy: data.avgAccuracy || 0,
-              });
+              const totalAttempts = typeof data.totalAttempts === "number" ? data.totalAttempts : 0;
+              const avgAccuracy = typeof data.avgAccuracy === "number" ? data.avgAccuracy : 0;
+              const existing = map.get(email);
+
+              if (!existing) {
+                map.set(email, {
+                  id: d.id,
+                  name: data.name || data.displayName || email.split("@")[0] || "Learner",
+                  email: data.email || email,
+                  createdAt: data.createdAt || new Date().toISOString(),
+                  targetExam: data.targetExam || "JEE Main & Advanced 2026",
+                  totalAttempts,
+                  avgAccuracy,
+                });
+              } else if (totalAttempts > (existing.totalAttempts || 0)) {
+                existing.totalAttempts = totalAttempts;
+                existing.avgAccuracy = avgAccuracy;
+                if (data.name) existing.name = data.name;
+                if (data.targetExam) existing.targetExam = data.targetExam;
+                existing.id = d.id;
+              }
             }
           });
         } catch {}
       }
-      setLearners(list);
+      setLearners(Array.from(map.values()));
       setLoading(false);
     }
     loadLearners();

@@ -39,6 +39,7 @@ import { saveCanonicalBundle, deleteCanonicalBundle } from "@/lib/data/bundleSer
 import { saveCanonicalCategory, deleteCanonicalCategory } from "@/lib/data/categoryService";
 import { saveCanonicalSubject, deleteCanonicalSubject, SubjectTaxonomy } from "@/lib/data/taxonomyService";
 import { getStudioDashboardMetrics } from "@/lib/admin/adminDataService";
+import { StoredAttempt } from "@/lib/firebase/firestoreService";
 
 export interface LearnerRecord {
   id: string;
@@ -819,28 +820,111 @@ export async function getLearnersAction(): Promise<ServerActionResponse<LearnerR
     }
 
     await ensureAdminAuthenticated();
-    const list: LearnerRecord[] = [];
+    const map = new Map<string, LearnerRecord>();
+
     if (isFirebaseConfigured && db) {
       const snap = await getDocs(collection(db, "users"));
       snap.forEach((d) => {
         const data = d.data();
+        const email = (data.email || "").trim().toLowerCase();
         if (
-          data.email !== "testorbit@ellipse.com" &&
-          data.role !== "admin" &&
-          (data.email || data.name)
+          email &&
+          email !== "testorbit@ellipse.com" &&
+          data.role !== "admin"
         ) {
-          list.push({
-            id: d.id,
-            name: data.name || data.displayName || data.email?.split("@")[0] || "Learner",
-            email: data.email || "",
-            createdAt: data.createdAt || new Date().toISOString(),
-            targetExam: data.targetExam || "JEE Main & Advanced 2026",
-            totalAttempts: data.totalAttempts || 0,
-            avgAccuracy: data.avgAccuracy || 0,
-          });
+          const totalAttempts = typeof data.totalAttempts === "number" ? data.totalAttempts : 0;
+          const avgAccuracy = typeof data.avgAccuracy === "number" ? data.avgAccuracy : 0;
+          const existing = map.get(email);
+
+          if (!existing) {
+            map.set(email, {
+              id: d.id,
+              name: data.name || data.displayName || email.split("@")[0] || "Learner",
+              email: data.email || email,
+              createdAt: data.createdAt || new Date().toISOString(),
+              targetExam: data.targetExam || "JEE Main & Advanced 2026",
+              totalAttempts,
+              avgAccuracy,
+            });
+          } else {
+            // Keep the record with attempts or higher stats
+            if (totalAttempts > (existing.totalAttempts || 0)) {
+              existing.totalAttempts = totalAttempts;
+              existing.avgAccuracy = avgAccuracy;
+              if (data.name) existing.name = data.name;
+              if (data.targetExam) existing.targetExam = data.targetExam;
+              existing.id = d.id;
+            }
+          }
         }
       });
     }
+
+    const list = Array.from(map.values());
+    return { success: true, data: list };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function getAdminTestAttemptsAction(): Promise<ServerActionResponse<StoredAttempt[]>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    const attemptsMap = new Map<string, StoredAttempt>();
+
+    if (isFirebaseConfigured && db) {
+      // 1. Fetch from global 'attempts' collection
+      try {
+        const topSnap = await getDocs(collection(db, "attempts"));
+        topSnap.forEach((d) => {
+          const data = d.data() as StoredAttempt;
+          if (data && data.id) {
+            attemptsMap.set(data.id, data);
+          }
+        });
+      } catch (e) {
+        console.warn("Could not query top-level attempts:", e);
+      }
+
+      // 2. Fetch from student subcollections: /users/{userId}/attempts
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        for (const uDoc of usersSnap.docs) {
+          const uData = uDoc.data();
+          if (uData.role === "admin" || uData.email === "testorbit@ellipse.com") continue;
+
+          try {
+            const userAttemptsSnap = await getDocs(collection(db, "users", uDoc.id, "attempts"));
+            userAttemptsSnap.forEach((aDoc) => {
+              const aData = aDoc.data() as StoredAttempt;
+              if (aData && aData.id) {
+                const existing = attemptsMap.get(aData.id);
+                attemptsMap.set(aData.id, {
+                  ...aData,
+                  userId: aData.userId || uDoc.id,
+                  userName: aData.userName || existing?.userName || uData.name || uData.displayName || "Learner",
+                  userEmail: aData.userEmail || existing?.userEmail || uData.email || "",
+                });
+              }
+            });
+          } catch (subErr) {
+            console.warn(`Could not fetch subcollection attempts for ${uDoc.id}:`, subErr);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch user accounts for attempts:", e);
+      }
+    }
+
+    const list = Array.from(attemptsMap.values());
+    list.sort((a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime());
+
     return { success: true, data: list };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
