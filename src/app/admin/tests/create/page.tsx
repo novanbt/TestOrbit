@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle,
+  CheckCircle2,
   HelpCircle,
   Plus,
   Trash2,
@@ -13,6 +14,7 @@ import {
   Save,
   BookOpen,
   Eye,
+  Globe,
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -35,14 +37,16 @@ export default function CreateTestPage() {
   const [difficulty, setDifficulty] = useState<DifficultyLevel>("Intermediate");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [maxMarks, setMaxMarks] = useState(100);
+  const [language, setLanguage] = useState("English");
   const [isFree, setIsFree] = useState(false);
   const [priceInPaise, setPriceInPaise] = useState(19900); // ₹199
   const [description, setDescription] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
-  const [topics, setTopics] = useState("Algebra, Mechanics, Chemical Bonding");
-  const [instructions, setInstructions] = useState(
-    "Standard CBT evaluation. Each correct response carries designated marks; negative marking applies as configured."
-  );
+  const [topics, setTopics] = useState<string[]>(["Algebra", "Mechanics", "Chemical Bonding"]);
+  const [topicInput, setTopicInput] = useState("Algebra, Mechanics, Chemical Bonding");
+  const [expectations, setExpectations] = useState<string[]>([
+    "Standard CBT evaluation. Each correct response carries designated marks; negative marking applies as configured.",
+  ]);
 
   // Questions for this test
   const [questions, setQuestions] = useState<TestQuestion[]>([
@@ -149,6 +153,19 @@ export default function CreateTestPage() {
 
     const catObj = CATEGORIES.find((c) => c.id === categoryId);
 
+    const effectiveTopics = Array.from(
+      new Set(
+        topicInput
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      )
+    );
+
+    const effectiveExpectations = expectations
+      .map((e) => e.trim())
+      .filter(Boolean);
+
     const newTest: MockTest = {
       id: "test-" + Date.now().toString(36),
       slug: slug.trim().toLowerCase(),
@@ -161,11 +178,16 @@ export default function CreateTestPage() {
       durationMinutes,
       maxMarks,
       difficulty,
-      language: "English",
+      language: language.trim() || "English",
       priceInPaise: isFree ? 0 : priceInPaise,
       isFree,
-      topics: topics.split(",").map((t) => t.trim()).filter(Boolean),
-      expectations: [instructions],
+      topics: effectiveTopics.length > 0 ? effectiveTopics : ["General Assessment"],
+      expectations:
+        effectiveExpectations.length > 0
+          ? effectiveExpectations
+          : [
+              "Standard CBT evaluation. Each correct response carries designated marks; negative marking applies as configured.",
+            ],
       published: publishImmediate,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -275,129 +297,299 @@ export default function CreateTestPage() {
 
       {/* TAB 1: Test Details */}
       {activeTab === "details" && (
-        <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-slate-700">Test Title *</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                placeholder="e.g., Class 12 Chemistry Board Mock Simulation"
-                className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">URL Slug *</label>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                placeholder="class-12-chemistry-board-mock"
-                className="w-full h-10 px-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Category *</label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none cursor-pointer"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Difficulty</label>
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
-                className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none cursor-pointer"
-              >
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Duration (Minutes)</label>
-              <input
-                type="number"
-                min="5"
-                max="360"
-                value={durationMinutes}
-                onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
-                className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Access Type & Price</label>
-              <div className="flex items-center gap-4 h-10">
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <input
-                    type="radio"
-                    name="accessType"
-                    checked={isFree}
-                    onChange={() => setIsFree(true)}
-                    className="text-indigo-600"
-                  />
-                  <span>Free Assessment</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
-                  <input
-                    type="radio"
-                    name="accessType"
-                    checked={!isFree}
-                    onChange={() => setIsFree(false)}
-                    className="text-indigo-600"
-                  />
-                  <span>Paid (₹{(priceInPaise / 100).toFixed(0)})</span>
-                </label>
+        <div className="space-y-6">
+          {/* Card 1: Metadata & Core Settings */}
+          <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-5">
+            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Metadata & Core Settings</h2>
+                <p className="text-[11px] text-slate-500">
+                  Configure title, classification, timing, language, and scoring specifications.
+                </p>
               </div>
+              <StudioBadge variant="info">Configuration</StudioBadge>
             </div>
 
-            {!isFree && (
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Price in INR (₹)</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-xs font-bold text-slate-700">Test Title *</label>
                 <input
-                  type="number"
-                  min="1"
-                  value={priceInPaise / 100}
-                  onChange={(e) => setPriceInPaise((parseInt(e.target.value) || 0) * 100)}
+                  type="text"
+                  value={title}
+                  onChange={(e) => handleTitleChange(e.target.value)}
+                  placeholder="e.g., Class 12 Chemistry Board Mock Simulation"
                   className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
                 />
               </div>
-            )}
 
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-slate-700">Target Audience</label>
-              <input
-                type="text"
-                value={targetAudience}
-                onChange={(e) => setTargetAudience(e.target.value)}
-                placeholder="e.g., CBSE Class 12 Science aspirants & JEE UG candidates"
-                className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
-              />
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">URL Slug *</label>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                  placeholder="class-12-chemistry-board-mock"
+                  className="w-full h-10 px-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Category *</label>
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none cursor-pointer"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Difficulty</label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
+                  className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none cursor-pointer"
+                >
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Duration (Minutes)</label>
+                <input
+                  type="number"
+                  min="5"
+                  max="360"
+                  value={durationMinutes}
+                  onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
+                  className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              {/* Total Marks (Max Marks) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Total Marks (Max Marks) *</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={maxMarks}
+                  onChange={(e) => setMaxMarks(parseInt(e.target.value) || 100)}
+                  placeholder="100"
+                  className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              {/* Examination Language */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Examination Language *</label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none cursor-pointer"
+                >
+                  <option value="English">English</option>
+                  <option value="Hindi">Hindi</option>
+                  <option value="Bilingual (English & Hindi)">Bilingual (English & Hindi)</option>
+                  <option value="Bengali">Bengali</option>
+                  <option value="Tamil">Tamil</option>
+                  <option value="Telugu">Telugu</option>
+                  <option value="Marathi">Marathi</option>
+                  <option value="Gujarati">Gujarati</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Access Type & Price</label>
+                <div className="flex items-center gap-4 h-10">
+                  <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                    <input
+                      type="radio"
+                      name="accessType"
+                      checked={isFree}
+                      onChange={() => setIsFree(true)}
+                      className="text-indigo-600"
+                    />
+                    <span>Free Assessment</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                    <input
+                      type="radio"
+                      name="accessType"
+                      checked={!isFree}
+                      onChange={() => setIsFree(false)}
+                      className="text-indigo-600"
+                    />
+                    <span>Paid (₹{(priceInPaise / 100).toFixed(0)})</span>
+                  </label>
+                </div>
+              </div>
+
+              {!isFree && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Price in INR (₹)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={priceInPaise / 100}
+                    onChange={(e) => setPriceInPaise((parseInt(e.target.value) || 0) * 100)}
+                    className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-xs font-bold text-slate-700">Target Audience</label>
+                <input
+                  type="text"
+                  value={targetAudience}
+                  onChange={(e) => setTargetAudience(e.target.value)}
+                  placeholder="e.g., CBSE Class 12 Science aspirants & JEE UG candidates"
+                  className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-xs font-bold text-slate-700">Description</label>
+                <textarea
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Comprehensive overview of exam pattern, chapters covered, and difficulty breakdown."
+                  className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Curriculum Syllabus & Learner Expectations */}
+          <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-xs space-y-6">
+            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Curriculum Syllabus & Learner Expectations</h2>
+                <p className="text-[11px] text-slate-500">
+                  Define topics covered in the syllabus and expectations/instructions shown to students on the storefront.
+                </p>
+              </div>
+              <StudioBadge variant="neutral">Curriculum</StudioBadge>
             </div>
 
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-slate-700">Description</label>
+            {/* Syllabus & Topics Covered */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-indigo-600" />
+                <label className="text-xs font-bold text-slate-800">
+                  Syllabus & Topics Covered
+                </label>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Enter chapters or syllabus topics covered in this test (separated by commas). These will appear as bullet items under &quot;Syllabus & Topics Covered&quot; on the public assessment overview page.
+              </p>
+
               <textarea
                 rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Comprehensive overview of exam pattern, chapters covered, and difficulty breakdown."
+                value={topicInput}
+                onChange={(e) => {
+                  setTopicInput(e.target.value);
+                  setTopics(e.target.value.split(",").map((t) => t.trim()).filter(Boolean));
+                }}
+                placeholder="e.g. Light: Reflection and Refraction, Electricity, Magnetic Effects of Electric Current, Human Eye and Colourful World"
                 className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
               />
+
+              {/* Topic Tag Chips Live Preview */}
+              {topics.length > 0 && (
+                <div className="pt-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                    Active Syllabus Topics ({topics.length} items):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {topics.map((t, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg font-medium"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                        <span>{t}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = topics.filter((_, i) => i !== idx);
+                            setTopics(updated);
+                            setTopicInput(updated.join(", "));
+                          }}
+                          className="text-indigo-400 hover:text-indigo-700 font-bold ml-0.5 cursor-pointer"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* What You Can Expect */}
+            <div className="space-y-3 pt-5 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <label className="text-xs font-bold text-slate-800">
+                    What You Can Expect (Key Pointers)
+                  </label>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExpectations([...expectations, ""])}
+                  className="text-[11px] h-7 px-2.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50/50"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  <span>Add Expectation Pointer</span>
+                </Button>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Each pointer appears with a green checkmark icon in the &quot;What You Can Expect&quot; card of the test overview page.
+              </p>
+
+              <div className="space-y-2.5">
+                {expectations.map((exp, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-start gap-2.5 p-3 bg-slate-50/80 border border-slate-200/80 rounded-xl"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-2" />
+                    <textarea
+                      rows={2}
+                      value={exp}
+                      onChange={(e) => {
+                        const updated = [...expectations];
+                        updated[idx] = e.target.value;
+                        setExpectations(updated);
+                      }}
+                      placeholder="e.g. Standard CBT evaluation. Each correct response carries designated marks; negative marking applies as configured."
+                      className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:border-indigo-500 outline-none resize-none"
+                    />
+                    {expectations.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setExpectations(expectations.filter((_, i) => i !== idx))}
+                        className="text-slate-400 hover:text-rose-600 p-1.5 transition-colors mt-1"
+                        title="Delete pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -408,7 +600,7 @@ export default function CreateTestPage() {
               onClick={() => setActiveTab("questions")}
               className="text-xs"
             >
-              Continue to Questions →
+              Continue to Questions ({questions.length}) →
             </Button>
           </div>
         </div>
