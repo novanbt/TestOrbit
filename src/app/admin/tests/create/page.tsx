@@ -13,9 +13,11 @@ import {
   Save,
   BookOpen,
   Eye,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { StudioBadge } from "@/components/admin/StudioUI";
+import { BulkQuestionImportModal } from "@/components/admin/BulkQuestionImportModal";
 import { CATEGORIES } from "@/data/categories";
 import { saveMockTestAction, saveQuestionsForTestAction } from "@/app/actions/adminStudioActions";
 import { MockTest, TestQuestion, DifficultyLevel } from "@/types";
@@ -108,6 +110,25 @@ export default function CreateTestPage() {
     setQuestions((prev) =>
       prev.map((q, i) => (i === idx ? { ...q, [field]: val } : q))
     );
+  };
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importBannerMsg, setImportBannerMsg] = useState<string | null>(null);
+
+  const handleBulkImport = (importedQuestions: TestQuestion[], mode: "append" | "replace") => {
+    if (mode === "replace") {
+      const formatted = importedQuestions.map((q, i) => ({ ...q, questionNumber: i + 1 }));
+      setQuestions(formatted);
+      setImportBannerMsg(`Successfully replaced questions with ${formatted.length} imported questions.`);
+    } else {
+      const combined = [...questions, ...importedQuestions].map((q, i) => ({ ...q, questionNumber: i + 1 }));
+      setQuestions(combined);
+      setImportBannerMsg(`Successfully imported and appended ${importedQuestions.length} questions (Total: ${combined.length}).`);
+    }
+    // Auto-clear banner after 8 seconds
+    setTimeout(() => {
+      setImportBannerMsg(null);
+    }, 8000);
   };
 
   const handleSave = async (publishImmediate: boolean) => {
@@ -396,20 +417,52 @@ export default function CreateTestPage() {
       {/* TAB 2: Questions Editor */}
       {activeTab === "questions" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Test Question Bank ({questions.length} Items)
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddQuestion}
-              className="text-xs"
-            >
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              <span>Add Another Question</span>
-            </Button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Test Question Bank ({questions.length} Items)
+              </span>
+              <p className="text-[11px] text-slate-500">
+                Author items manually or use bulk import to load questions via CSV or JSON.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsImportModalOpen(true)}
+                className="text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50/50"
+              >
+                <Upload className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                <span>Bulk Import Questions</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddQuestion}
+                className="text-xs"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                <span>Add Another Question</span>
+              </Button>
+            </div>
           </div>
+
+          {importBannerMsg && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-between animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{importBannerMsg}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setImportBannerMsg(null)}
+                className="text-emerald-700 hover:text-emerald-900 text-xs font-semibold px-2 py-0.5 rounded hover:bg-emerald-100/50"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           {questions.map((q, idx) => (
             <div
@@ -605,6 +658,14 @@ export default function CreateTestPage() {
           </div>
         </div>
       )}
+
+      {/* Bulk Question Import Modal */}
+      <BulkQuestionImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleBulkImport}
+        existingQuestionsCount={questions.length}
+      />
     </div>
   );
 }

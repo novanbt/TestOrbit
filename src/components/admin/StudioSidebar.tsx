@@ -95,7 +95,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Administration",
     items: [
       { label: "Firebase Status", href: "/admin/settings/integrations", icon: Flame },
-      { label: "Data Import/Export", href: "/admin/settings/data", icon: Database },
+      { label: "Data Export", href: "/admin/settings/data", icon: Database },
     ],
   },
 ];

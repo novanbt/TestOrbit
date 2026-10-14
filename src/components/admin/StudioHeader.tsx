@@ -262,7 +262,7 @@ export function StudioHeader() {
                   className="flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
                 >
                   <Database className="w-4 h-4 text-indigo-500" />
-                  <span>Data Import/Export</span>
+                  <span>Data Export</span>
                 </Link>
               </div>
 

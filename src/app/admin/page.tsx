@@ -318,10 +318,10 @@ export default function StudioDashboardPage() {
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-3">
             <div className="flex items-center gap-2 text-slate-900">
               <Database className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-bold">Data Import & Export</h3>
+              <h3 className="text-sm font-bold">Data Export & Backups</h3>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Download complete JSON backups of assessment catalogs, learner profiles, and platform configuration or import existing dataset records.
+              Download complete portable JSON backups of assessment catalogs, question banks, learner profiles, and platform configuration.
             </p>
             <div className="pt-2 flex items-center justify-between text-xs border-t border-slate-100">
               <span className="text-[11px] text-slate-400">JSON snapshot utility</span>
