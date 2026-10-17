@@ -346,6 +346,7 @@ export async function saveSeriesAction(series: TestBundle): Promise<ServerAction
       revalidatePath(`/series/${saved.slug}`);
       revalidatePath(`/test-series/${saved.slug}`);
       revalidatePath("/admin/series");
+      revalidatePath("/admin/website/featured-series");
     } catch {}
 
     return { success: true, data: saved };

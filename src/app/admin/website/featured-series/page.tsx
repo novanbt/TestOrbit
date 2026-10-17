@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Layers, Star, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { fetchCanonicalBundles } from "@/lib/data/bundleService";
+import { fetchCanonicalBundles, saveCanonicalBundle } from "@/lib/data/bundleService";
 import { saveSeriesAction } from "@/app/actions/adminStudioActions";
 import { TestBundle } from "@/types";
 
@@ -20,6 +20,7 @@ export default function FeaturedSeriesCMSPage() {
     const updated = { ...series, isFeatured: !series.isFeatured, updatedAt: new Date().toISOString() };
     const res = await saveSeriesAction(updated);
     if (res.success) {
+      saveCanonicalBundle(updated);
       setSeriesList((prev) => prev.map((s) => (s.id === series.id ? updated : s)));
     }
     setSavingId(null);

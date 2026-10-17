@@ -311,6 +311,8 @@ export {
   getAllCanonicalPublishedBundles,
   fetchCanonicalBundles,
   fetchCanonicalPublishedBundles,
+  fetchCanonicalFeaturedBundles,
+  getCanonicalFeaturedBundles,
   fetchCanonicalBundleBySlug,
   getCanonicalBundleBySlug,
   getCanonicalBundleById,

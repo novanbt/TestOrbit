@@ -131,7 +131,8 @@ export async function syncBundlesFromFirestore(): Promise<void> {
     if (!snap.empty) {
       snap.forEach((d) => {
         if (d.id === "_bundle_catalog_state") return;
-        const item = d.data() as TestBundle;
+        const data = d.data() as Partial<TestBundle>;
+        const item: TestBundle = { id: d.id, ...data } as TestBundle;
         if (item && item.slug) {
           const sLower = item.slug.toLowerCase();
           if (!deletedBundleSlugs.has(sLower) && (!item.id || !deletedBundleIds.has(item.id))) {
@@ -195,6 +196,28 @@ export async function fetchCanonicalPublishedBundles(): Promise<TestBundle[]> {
   initBundleRegistry();
   await syncBundlesFromFirestore();
   return getAllCanonicalPublishedBundles();
+}
+
+/**
+ * Retrieve canonical featured bundles (published bundles marked as featured).
+ * Falls back to first 3 published bundles if none are explicitly featured.
+ */
+export function getCanonicalFeaturedBundles(): TestBundle[] {
+  const published = getAllCanonicalPublishedBundles();
+  const featured = published.filter((b) => Boolean(b.isFeatured));
+  if (featured.length > 0) {
+    return featured;
+  }
+  return published.slice(0, 3);
+}
+
+/**
+ * Async getter for featured canonical bundles with Firestore sync.
+ */
+export async function fetchCanonicalFeaturedBundles(): Promise<TestBundle[]> {
+  initBundleRegistry();
+  await syncBundlesFromFirestore();
+  return getCanonicalFeaturedBundles();
 }
 
 /**
@@ -360,6 +383,7 @@ export async function saveCanonicalBundle(bundle: TestBundle): Promise<TestBundl
     includedTestsCount: bundle.includedItems ? bundle.includedItems.length : (bundle.includedTestSlugs?.length || 0),
     includedTestSlugs: bundle.includedItems ? bundle.includedItems.map((i) => i.testSlug) : bundle.includedTestSlugs || [],
     published: bundle.status === "published" || bundle.published === true,
+    isFeatured: Boolean(bundle.isFeatured),
     updatedAt: new Date().toISOString(),
   };
 

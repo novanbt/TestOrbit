@@ -7,9 +7,10 @@ import { SearchBar } from "@/components/marketplace/SearchBar";
 import { CategoryCard } from "@/components/marketplace/CategoryCard";
 import { TestSeriesCard } from "@/components/marketplace/TestSeriesCard";
 import { FeaturedTestsClient } from "@/components/marketplace/FeaturedTestsClient";
+import { FeaturedSeriesClient } from "@/components/marketplace/FeaturedSeriesClient";
 import { fetchCanonicalCategories } from "@/lib/data/categoryService";
 import { fetchCanonicalFeaturedTests } from "@/lib/data/testService";
-import { fetchCanonicalPublishedBundles } from "@/lib/data/bundleService";
+import { fetchCanonicalFeaturedBundles } from "@/lib/data/bundleService";
 import { getSiteCMSConfig } from "@/lib/admin/adminDataService";
 import { connection } from "next/server";
 
@@ -23,13 +24,11 @@ async function FeaturedTestsStream() {
 
 export default async function HomePage() {
   await connection();
-  const [cmsConfig, categories, allSeries] = await Promise.all([
+  const [cmsConfig, categories, featuredSeries] = await Promise.all([
     getSiteCMSConfig(),
     fetchCanonicalCategories(),
-    fetchCanonicalPublishedBundles(),
+    fetchCanonicalFeaturedBundles(),
   ]);
-
-  const testSeries = allSeries.slice(0, 3);
 
   return (
     <div className="flex flex-col w-full pb-16">
@@ -156,19 +155,7 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        {testSeries.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {testSeries.map((series) => (
-              <TestSeriesCard key={series.id} series={series} />
-            ))}
-          </div>
-        ) : (
-          <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-2xl">
-            <p className="text-xs text-slate-500">
-              New test series packages are being prepared by curriculum experts.
-            </p>
-          </div>
-        )}
+        <FeaturedSeriesClient initialSeries={featuredSeries} />
       </section>
 
       {/* 5. FAQs Section from CMS */}
