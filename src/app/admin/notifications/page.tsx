@@ -13,110 +13,37 @@ import {
   Trash2,
   ExternalLink,
 } from "lucide-react";
-import { StudioBadge } from "@/components/admin/StudioUI";
 import { useAdminStudio } from "@/context/AdminStudioContext";
-import { collection, getDocs } from "firebase/firestore";
-import { db, isFirebaseConfigured } from "@/lib/firebase/client";
-import { dismissNotificationAction, toggleNotificationReadAction } from "@/app/actions/adminStudioActions";
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  type: "info" | "success" | "warning" | "error";
-  read: boolean;
-  timestamp: string;
-  link?: string;
-}
-
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "notif-1",
-    title: "Catalog Synchronization Successful",
-    message: "Canonical mock test and question repository synced with Firebase Firestore.",
-    type: "success",
-    read: false,
-    timestamp: "2026-10-13T10:45:00.000Z",
-    link: "/admin/tests",
-  },
-  {
-    id: "notif-2",
-    title: "New Learner Registration",
-    message: "A new learner profile was created with active examination permissions.",
-    type: "info",
-    read: false,
-    timestamp: "2026-10-13T09:00:00.000Z",
-    link: "/admin/learners",
-  },
-  {
-    id: "notif-3",
-    title: "Security Rule Audit",
-    message: "Firestore security rules audit passed: public catalogue and test attempts cleanly sandboxed.",
-    type: "info",
-    read: true,
-    timestamp: "2026-10-12T12:00:00.000Z",
-    link: "/admin/settings/integrations",
-  },
-  {
-    id: "notif-4",
-    title: "Platform Backup Prepared",
-    message: "Automated snapshot of all test series, assignments, and coupons ready for JSON download.",
-    type: "info",
-    read: true,
-    timestamp: "2026-10-11T18:00:00.000Z",
-    link: "/admin/settings/data",
-  },
-];
+import { AdminNotification } from "@/types/admin";
 
 export default function AdminNotificationsPage() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const {
+    notifications,
+    unreadNotificationCount,
+    markAllNotificationsAsRead,
+    toggleNotificationRead,
+    dismissNotification,
+  } = useAdminStudio();
+
   const [filter, setFilter] = useState<"all" | "unread">("all");
 
-  const loadNotifications = async () => {
-    try {
-      if (isFirebaseConfigured && db) {
-        const snap = await getDocs(collection(db, "adminNotifications"));
-        if (!snap.empty) {
-          const list: NotificationItem[] = [];
-          snap.forEach((d) => list.push(d.data() as NotificationItem));
-          list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-          setNotifications(list);
-        }
-      }
-    } catch {}
-  };
-
-  useEffect(() => {
-    loadNotifications();
-  }, []);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = unreadNotificationCount;
 
   const markAllAsRead = async () => {
-    const unread = notifications.filter((n) => !n.read);
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    for (const item of unread) {
-      await toggleNotificationReadAction(item.id, true);
-    }
+    await markAllNotificationsAsRead();
   };
 
   const toggleRead = async (id: string) => {
-    const target = notifications.find((n) => n.id === id);
-    const newRead = !target?.read;
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: newRead } : n))
-    );
-    await toggleNotificationReadAction(id, newRead);
+    await toggleNotificationRead(id);
   };
 
   const deleteNotification = async (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-    await dismissNotificationAction(id);
+    await dismissNotification(id);
   };
 
   const filtered = notifications.filter((n) => (filter === "unread" ? !n.read : true));
 
-  const getTypeIcon = (type: NotificationItem["type"]) => {
+  const getTypeIcon = (type: AdminNotification["type"]) => {
     switch (type) {
       case "success":
         return <CheckCircle2 className="w-5 h-5 text-emerald-600" />;

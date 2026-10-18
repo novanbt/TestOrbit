@@ -752,6 +752,60 @@ export async function deleteAdminUserAction(id: string): Promise<ServerActionRes
   }
 }
 
+export async function getAdminNotificationsAction(): Promise<ServerActionResponse<AdminNotification[]>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    if (isFirebaseConfigured && db) {
+      const snap = await getDocs(collection(db, "adminNotifications"));
+      if (!snap.empty) {
+        const list: AdminNotification[] = [];
+        snap.forEach((d) => {
+          list.push({ id: d.id, ...d.data() } as AdminNotification);
+        });
+        list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        return { success: true, data: list };
+      }
+    }
+
+    return { success: true, data: [] };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function markAllNotificationsReadAction(): Promise<ServerActionResponse<void>> {
+  try {
+    const session = await getAdminSession();
+    if (!session) {
+      return { success: false, error: "Unauthorized: Administrator session required." };
+    }
+
+    await ensureAdminAuthenticated();
+    if (isFirebaseConfigured && db) {
+      const snap = await getDocs(collection(db, "adminNotifications"));
+      const updates = snap.docs.map((d) =>
+        setDoc(doc(db, "adminNotifications", d.id), { read: true }, { merge: true })
+      );
+      await Promise.all(updates);
+    }
+    try {
+      revalidatePath("/admin/notifications");
+      revalidatePath("/admin");
+    } catch {}
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
 export async function dismissNotificationAction(id: string): Promise<ServerActionResponse<void>> {
   try {
     const session = await getAdminSession();
@@ -763,7 +817,10 @@ export async function dismissNotificationAction(id: string): Promise<ServerActio
     if (isFirebaseConfigured && db) {
       await deleteDoc(doc(db, "adminNotifications", id));
     }
-    revalidatePath("/admin/notifications");
+    try {
+      revalidatePath("/admin/notifications");
+      revalidatePath("/admin");
+    } catch {}
 
     return { success: true };
   } catch (err: unknown) {
@@ -783,7 +840,10 @@ export async function toggleNotificationReadAction(id: string, read: boolean): P
     if (isFirebaseConfigured && db) {
       await setDoc(doc(db, "adminNotifications", id), { read }, { merge: true });
     }
-    revalidatePath("/admin/notifications");
+    try {
+      revalidatePath("/admin/notifications");
+      revalidatePath("/admin");
+    } catch {}
 
     return { success: true };
   } catch (err: unknown) {

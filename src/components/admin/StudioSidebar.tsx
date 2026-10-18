@@ -102,7 +102,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 export function StudioSidebar() {
   const pathname = usePathname();
-  const { isSidebarCollapsed, isMobileSidebarOpen, setMobileSidebarOpen } = useAdminStudio();
+  const { isSidebarCollapsed, isMobileSidebarOpen, setMobileSidebarOpen, unreadNotificationCount } = useAdminStudio();
 
   // Keep track of which groups are expanded in sidebar
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -195,9 +195,9 @@ export function StudioSidebar() {
                         {!isSidebarCollapsed && (
                           <span className="truncate flex-1">{item.label}</span>
                         )}
-                        {!isSidebarCollapsed && item.badge && (
-                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
-                            {item.badge}
+                        {!isSidebarCollapsed && (item.badge || (item.href === "/admin/notifications" && unreadNotificationCount > 0)) && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-700">
+                            {item.badge || unreadNotificationCount}
                           </span>
                         )}
                       </Link>

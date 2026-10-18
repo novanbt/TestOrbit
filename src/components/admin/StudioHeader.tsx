@@ -30,6 +30,7 @@ export function StudioHeader() {
     notifications,
     unreadNotificationCount,
     markNotificationAsRead,
+    markAllNotificationsAsRead,
     signOut,
   } = useAdminStudio();
 
@@ -163,32 +164,73 @@ export function StudioHeader() {
           </button>
 
           {notificationsOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-40 animate-in fade-in zoom-in-95">
+            <div className="absolute right-0 mt-2 w-84 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-40 animate-in fade-in zoom-in-95">
               <div className="flex items-center justify-between px-3.5 pb-2 border-b border-slate-100">
-                <span className="text-xs font-bold text-slate-900">Notifications</span>
-                <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                  {unreadNotificationCount} New
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900">Notifications</span>
+                  {unreadNotificationCount > 0 ? (
+                    <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                      {unreadNotificationCount} New
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                      All caught up
+                    </span>
+                  )}
+                </div>
+                {unreadNotificationCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markAllNotificationsAsRead();
+                    }}
+                    className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+                  >
+                    Mark all read
+                  </button>
+                )}
               </div>
               <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    onClick={() => markNotificationAsRead(n.id)}
-                    className={cn(
-                      "p-3 text-xs hover:bg-slate-50 transition-colors cursor-pointer space-y-0.5",
-                      !n.read && "bg-indigo-50/40"
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-900">{n.title}</span>
-                      <span className="text-[10px] text-slate-400">
-                        {new Date(n.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">{n.message}</p>
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400">
+                    No notifications
                   </div>
-                ))}
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      onClick={() => {
+                        markNotificationAsRead(n.id);
+                        if (n.link) {
+                          setNotificationsOpen(false);
+                          router.push(n.link);
+                        }
+                      }}
+                      className={cn(
+                        "p-3 text-xs hover:bg-slate-50 transition-colors cursor-pointer space-y-0.5",
+                        !n.read && "bg-indigo-50/40"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-900">{n.title}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {new Date(n.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">{n.message}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="pt-2 px-3 border-t border-slate-100 mt-1">
+                <Link
+                  href="/admin/notifications"
+                  onClick={() => setNotificationsOpen(false)}
+                  className="block text-center text-[11px] font-semibold text-slate-600 hover:text-indigo-600 py-1 transition-colors"
+                >
+                  View all in Notifications center →
+                </Link>
               </div>
             </div>
           )}
