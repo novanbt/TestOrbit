@@ -1,6 +1,7 @@
 import { MockTest } from "@/types";
 import { MOCK_TESTS, FEATURED_TEST_SLUGS } from "./baseTests";
 import {
+  getAllCanonicalTests,
   getAllCanonicalPublishedTests,
   getCanonicalFeaturedTests,
   getCanonicalTestBySlug,
@@ -31,6 +32,7 @@ export function getTestsByCategory(categorySlug: string): MockTest[] {
 export {
   getCanonicalTestBySlug,
   getCanonicalFeaturedTests,
+  getAllCanonicalTests,
   getAllCanonicalPublishedTests,
   fetchCanonicalTests,
   fetchCanonicalPublishedTests,
@@ -40,3 +42,4 @@ export {
   deleteCanonicalTest,
   fetchCanonicalQuestionsForTest,
 } from "@/lib/data/testService";
+

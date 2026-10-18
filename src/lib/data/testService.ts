@@ -111,6 +111,8 @@ export async function syncFromFirestore(): Promise<void> {
     // 2. Purge any deleted tests from the registry
     if (allBaseDeleted) {
       for (const test of MOCK_TESTS) {
+        deletedSlugs.add(test.slug.toLowerCase());
+        if (test.id) deletedIds.add(test.id);
         canonicalRegistry.delete(test.slug);
         canonicalRegistry.delete(test.slug.toLowerCase());
         if (test.id) canonicalRegistry.delete(test.id);
@@ -233,25 +235,38 @@ export async function fetchCanonicalTestBySlug(slug: string, requirePublished: b
 }
 
 /**
- * Synchronous getter for all published tests.
+ * Synchronous getter for all unique tests (both published and drafts),
+ * excluding base tests if marked deleted and filtering out any deleted items.
  */
-export function getAllCanonicalPublishedTests(): MockTest[] {
+export function getAllCanonicalTests(): MockTest[] {
   initRegistry();
   const seenSlugs = new Set<string>();
   const result: MockTest[] = [];
 
   for (const test of canonicalRegistry.values()) {
     const sLower = test.slug.toLowerCase();
-    if (allBaseDeleted && MOCK_TESTS.some((bt) => bt.slug.toLowerCase() === sLower)) {
+    if (
+      allBaseDeleted &&
+      MOCK_TESTS.some((bt) => bt.slug.toLowerCase() === sLower || (bt.id && test.id && bt.id === test.id))
+    ) {
       continue;
     }
-    if (test.published && !seenSlugs.has(sLower) && !deletedSlugs.has(sLower)) {
+    if (!seenSlugs.has(sLower) && !deletedSlugs.has(sLower) && (!test.id || !deletedIds.has(test.id))) {
       seenSlugs.add(sLower);
       result.push(test);
     }
   }
 
-  return result;
+  return result.sort(
+    (a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime()
+  );
+}
+
+/**
+ * Synchronous getter for all published tests.
+ */
+export function getAllCanonicalPublishedTests(): MockTest[] {
+  return getAllCanonicalTests().filter((test) => test.published);
 }
 
 /**
@@ -260,16 +275,7 @@ export function getAllCanonicalPublishedTests(): MockTest[] {
 export async function fetchCanonicalTests(): Promise<MockTest[]> {
   initRegistry();
   await syncFromFirestore();
-  const seenSlugs = new Set<string>();
-  const result: MockTest[] = [];
-  for (const test of canonicalRegistry.values()) {
-    const sLower = test.slug.toLowerCase();
-    if (!seenSlugs.has(sLower) && !deletedSlugs.has(sLower)) {
-      seenSlugs.add(sLower);
-      result.push(test);
-    }
-  }
-  return result;
+  return getAllCanonicalTests();
 }
 
 /**
@@ -340,6 +346,7 @@ export async function saveCanonicalTest(test: MockTest): Promise<MockTest> {
       await setDoc(
         doc(db, "tests", "_catalog_state"),
         {
+          allBaseDeleted,
           deletedSlugs: Array.from(deletedSlugs),
           deletedIds: Array.from(deletedIds),
           updatedAt: new Date().toISOString(),
@@ -383,7 +390,7 @@ export async function deleteCanonicalTest(id: string, slug?: string): Promise<vo
   questionsRegistry.delete(effectiveSlug);
   questionsRegistry.delete(slugLower);
 
-  if (getAllCanonicalPublishedTests().length === 0) {
+  if (allBaseDeleted || getAllCanonicalPublishedTests().length === 0) {
     allBaseDeleted = true;
   }
   syncLocalCache();

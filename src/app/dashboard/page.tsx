@@ -38,7 +38,7 @@ import {
 import { UserBundleEnrollment, MockTest } from "@/types";
 import { getUserEnrolledBundles } from "@/lib/data/entitlementService";
 import { getCanonicalBundleById, getCanonicalBundleBySlug } from "@/lib/data/bundleService";
-import { MOCK_TESTS } from "@/data/baseTests";
+import { getAllCanonicalTests } from "@/lib/data/testService";
 
 const TARGET_EXAMS = [
   "JEE Main & Advanced 2026",
@@ -462,7 +462,7 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   {enrolledBundles.map((enrollment) => {
                     const testsMap = new Map<string, MockTest>();
-                    for (const t of MOCK_TESTS) {
+                    for (const t of getAllCanonicalTests()) {
                       testsMap.set(t.slug, t);
                       testsMap.set(t.id, t);
                     }
