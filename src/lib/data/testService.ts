@@ -22,17 +22,17 @@ let isInitialized = false;
 let isSyncingFirestore = false;
 
 // Persistent deletion tracking
-let allBaseDeleted = false;
+let allBaseDeleted = true;
 const deletedSlugs = new Set<string>();
 const deletedIds = new Set<string>();
 
 function loadLocalCache() {
+  allBaseDeleted = true;
   if (typeof window !== "undefined") {
     try {
       const cached = localStorage.getItem("testorbit_catalog_state");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed.allBaseDeleted !== undefined) allBaseDeleted = Boolean(parsed.allBaseDeleted);
         if (Array.isArray(parsed.deletedSlugs)) parsed.deletedSlugs.forEach((s: string) => deletedSlugs.add(s.toLowerCase()));
         if (Array.isArray(parsed.deletedIds)) parsed.deletedIds.forEach((id: string) => deletedIds.add(id));
       }
@@ -46,7 +46,7 @@ function syncLocalCache() {
       localStorage.setItem(
         "testorbit_catalog_state",
         JSON.stringify({
-          allBaseDeleted,
+          allBaseDeleted: true,
           deletedSlugs: Array.from(deletedSlugs),
           deletedIds: Array.from(deletedIds),
         })
@@ -59,23 +59,12 @@ function syncLocalCache() {
 loadLocalCache();
 
 /**
- * Initializes the in-memory registry with base mock tests (skipping any deleted ones).
+ * Initializes the in-memory registry. Only tests from Firestore/database are loaded.
  */
 export function initRegistry() {
   if (isInitialized) return;
   loadLocalCache();
-
-  if (!allBaseDeleted) {
-    for (const test of MOCK_TESTS) {
-      const slugLower = test.slug.toLowerCase();
-      if (!deletedSlugs.has(slugLower) && (!test.id || !deletedIds.has(test.id))) {
-        if (!canonicalRegistry.has(test.slug)) canonicalRegistry.set(test.slug, test);
-        if (!canonicalRegistry.has(slugLower)) canonicalRegistry.set(slugLower, test);
-        if (test.id && !canonicalRegistry.has(test.id)) canonicalRegistry.set(test.id, test);
-      }
-    }
-  }
-
+  allBaseDeleted = true;
   isInitialized = true;
 }
 
@@ -95,6 +84,8 @@ export async function syncFromFirestore(): Promise<void> {
         const mData = manifestDoc.data();
         if (mData?.allBaseDeleted !== undefined) {
           allBaseDeleted = Boolean(mData.allBaseDeleted);
+        } else {
+          allBaseDeleted = true;
         }
         if (Array.isArray(mData?.deletedSlugs)) {
           mData.deletedSlugs.forEach((s: string) => deletedSlugs.add(s.toLowerCase()));
@@ -109,19 +100,9 @@ export async function syncFromFirestore(): Promise<void> {
     }
 
     // 2. Purge any deleted tests from the registry
-    if (allBaseDeleted) {
-      for (const test of MOCK_TESTS) {
-        deletedSlugs.add(test.slug.toLowerCase());
-        if (test.id) deletedIds.add(test.id);
-        canonicalRegistry.delete(test.slug);
-        canonicalRegistry.delete(test.slug.toLowerCase());
-        if (test.id) canonicalRegistry.delete(test.id);
-      }
-    } else {
-      for (const [key, test] of canonicalRegistry.entries()) {
-        if (deletedSlugs.has(test.slug.toLowerCase()) || (test.id && deletedIds.has(test.id))) {
-          canonicalRegistry.delete(key);
-        }
+    for (const [key, test] of canonicalRegistry.entries()) {
+      if (deletedSlugs.has(test.slug.toLowerCase()) || (test.id && deletedIds.has(test.id))) {
+        canonicalRegistry.delete(key);
       }
     }
 

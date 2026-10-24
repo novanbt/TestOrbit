@@ -125,12 +125,12 @@ export function filterMarketplaceItems(
     const rawQ = filters.searchQuery.toLowerCase().trim();
     const cleanQ = rawQ.replace(/^#/, "");
     items = items.filter((i) => {
-      const matchTitle = i.title.toLowerCase().includes(rawQ) || i.title.toLowerCase().includes(cleanQ);
-      const matchDesc = i.description.toLowerCase().includes(rawQ) || i.description.toLowerCase().includes(cleanQ);
-      const matchCat = i.categoryName.toLowerCase().includes(rawQ) || i.categoryName.toLowerCase().includes(cleanQ);
+      const matchTitle = (i.title || "").toLowerCase().includes(rawQ) || (i.title || "").toLowerCase().includes(cleanQ);
+      const matchDesc = (i.description || "").toLowerCase().includes(rawQ) || (i.description || "").toLowerCase().includes(cleanQ);
+      const matchCat = (i.categoryName || "").toLowerCase().includes(rawQ) || (i.categoryName || "").toLowerCase().includes(cleanQ);
       const matchAudience = (i.targetAudience || "").toLowerCase().includes(rawQ) || (i.targetAudience || "").toLowerCase().includes(cleanQ);
       const matchTags = Array.isArray(i.tags) && i.tags.some((t) => {
-        const lowerT = t.toLowerCase();
+        const lowerT = (t || "").toLowerCase();
         return lowerT.includes(cleanQ) || lowerT.includes(rawQ);
       });
       return matchTitle || matchDesc || matchCat || matchAudience || matchTags;

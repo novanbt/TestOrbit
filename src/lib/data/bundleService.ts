@@ -18,19 +18,17 @@ let isInitialized = false;
 let isSyncingFirestore = false;
 
 // Persistent deletion tracking for test bundles
-let allBaseBundlesDeleted = false;
+let allBaseBundlesDeleted = true;
 const deletedBundleSlugs = new Set<string>();
 const deletedBundleIds = new Set<string>();
 
 function loadLocalCache() {
+  allBaseBundlesDeleted = true;
   if (typeof window !== "undefined") {
     try {
       const cached = localStorage.getItem("testorbit_bundle_catalog_state");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed.allBaseBundlesDeleted !== undefined) {
-          allBaseBundlesDeleted = Boolean(parsed.allBaseBundlesDeleted);
-        }
         if (Array.isArray(parsed.deletedBundleSlugs)) {
           parsed.deletedBundleSlugs.forEach((s: string) => deletedBundleSlugs.add(s.toLowerCase()));
         }
@@ -48,7 +46,7 @@ function syncLocalCache() {
       localStorage.setItem(
         "testorbit_bundle_catalog_state",
         JSON.stringify({
-          allBaseBundlesDeleted,
+          allBaseBundlesDeleted: true,
           deletedBundleSlugs: Array.from(deletedBundleSlugs),
           deletedBundleIds: Array.from(deletedBundleIds),
         })
@@ -60,23 +58,12 @@ function syncLocalCache() {
 loadLocalCache();
 
 /**
- * Initializes the in-memory registry with base bundles.
+ * Initializes the in-memory registry. Only bundles from Firestore/database are loaded.
  */
 export function initBundleRegistry() {
   if (isInitialized) return;
   loadLocalCache();
-
-  if (!allBaseBundlesDeleted) {
-    for (const bundle of BASE_BUNDLES) {
-      const slugLower = bundle.slug.toLowerCase();
-      if (!deletedBundleSlugs.has(slugLower) && (!bundle.id || !deletedBundleIds.has(bundle.id))) {
-        if (!canonicalBundleRegistry.has(bundle.slug)) canonicalBundleRegistry.set(bundle.slug, bundle);
-        if (!canonicalBundleRegistry.has(slugLower)) canonicalBundleRegistry.set(slugLower, bundle);
-        if (bundle.id && !canonicalBundleRegistry.has(bundle.id)) canonicalBundleRegistry.set(bundle.id, bundle);
-      }
-    }
-  }
-
+  allBaseBundlesDeleted = true;
   isInitialized = true;
 }
 
@@ -95,6 +82,8 @@ export async function syncBundlesFromFirestore(): Promise<void> {
         const mData = manifestDoc.data();
         if (mData?.allBaseBundlesDeleted !== undefined) {
           allBaseBundlesDeleted = Boolean(mData.allBaseBundlesDeleted);
+        } else {
+          allBaseBundlesDeleted = true;
         }
         if (Array.isArray(mData?.deletedBundleSlugs)) {
           mData.deletedBundleSlugs.forEach((s: string) => deletedBundleSlugs.add(s.toLowerCase()));
@@ -109,19 +98,9 @@ export async function syncBundlesFromFirestore(): Promise<void> {
     }
 
     // 2. Purge deleted bundles
-    if (allBaseBundlesDeleted) {
-      for (const bundle of BASE_BUNDLES) {
-        deletedBundleSlugs.add(bundle.slug.toLowerCase());
-        if (bundle.id) deletedBundleIds.add(bundle.id);
-        canonicalBundleRegistry.delete(bundle.slug);
-        canonicalBundleRegistry.delete(bundle.slug.toLowerCase());
-        if (bundle.id) canonicalBundleRegistry.delete(bundle.id);
-      }
-    } else {
-      for (const [key, bundle] of canonicalBundleRegistry.entries()) {
-        if (deletedBundleSlugs.has(bundle.slug.toLowerCase()) || (bundle.id && deletedBundleIds.has(bundle.id))) {
-          canonicalBundleRegistry.delete(key);
-        }
+    for (const [key, bundle] of canonicalBundleRegistry.entries()) {
+      if (deletedBundleSlugs.has(bundle.slug.toLowerCase()) || (bundle.id && deletedBundleIds.has(bundle.id))) {
+        canonicalBundleRegistry.delete(key);
       }
     }
 
